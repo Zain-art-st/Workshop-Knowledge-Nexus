@@ -1,0 +1,414 @@
+/* --- Dark Mode Variables --- */
+:root {
+    --bg-color: #030303;
+    --card-bg: #1a1a1b;
+    --nav-bg: #1a1a1b;
+    --text-main: #d7dadc;
+    --text-muted: #818384;
+    --border-color: #343536;
+    --brand-blue: #33a8ff;
+    --brand-blue-hover: #2184d0;
+    --upvote: #ff4500;
+    --downvote: #7193ff;
+    --thread-line: #343536;
+    --thread-line-hover: #d7dadc;
+    --hover-bg: #272729;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+}
+
+/* --- Top Navigation Bar --- */
+.navbar {
+    background-color: var(--nav-bg);
+    border-bottom: 1px solid var(--border-color);
+    height: 56px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.nav-left, .nav-center, .nav-right {
+    flex: 1;
+    display: flex;
+}
+
+.nav-center {
+    justify-content: center;
+}
+
+.nav-right {
+    justify-content: flex-end;
+    position: relative;
+}
+
+.logo {
+    color: var(--brand-blue);
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+/* --- Search & Window Functionality --- */
+.search-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 300px;
+}
+
+.search-input {
+    width: 100%;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    padding: 8px 16px;
+    border-radius: 20px;
+    outline: none;
+    transition: border 0.2s;
+}
+
+.search-input:focus {
+    border-color: var(--brand-blue);
+}
+
+.search-window {
+    position: absolute;
+    top: 45px;
+    left: 0;
+    width: 350px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    display: none; /* Hidden by default */
+}
+
+/* Shows the search window when the input is focused */
+.search-input:focus + .search-window,
+.search-window:hover {
+    display: block;
+}
+
+.search-window h4 {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+.recent-list {
+    list-style: none;
+}
+
+.recent-list li {
+    padding: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.recent-list li:hover {
+    background-color: var(--hover-bg);
+}
+
+.sub-icon {
+    width: 24px;
+    height: 24px;
+    background-color: var(--brand-blue);
+    border-radius: 50%;
+}
+
+/* --- Profile & Settings Toggle --- */
+.profile-toggle-checkbox {
+    display: none; /* Hide the actual checkbox */
+}
+
+.profile-avatar {
+    width: 36px;
+    height: 36px;
+    background-color: var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    background-image: url('https://www.redditstatic.com/avatars/defaults/v2/avatar_default_2.png');
+    background-size: cover;
+}
+
+.profile-menu {
+    position: absolute;
+    top: 48px;
+    right: 0;
+    width: 200px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    display: none; /* Hidden by default */
+    flex-direction: column;
+}
+
+/* Shows the profile menu when the hidden checkbox is checked */
+.profile-toggle-checkbox:checked ~ .profile-menu {
+    display: flex;
+}
+
+.profile-menu a {
+    color: var(--text-main);
+    text-decoration: none;
+    padding: 12px 16px;
+    font-size: 14px;
+}
+
+.profile-menu a:hover {
+    background-color: var(--hover-bg);
+}
+
+.profile-menu hr {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 4px 0;
+}
+
+/* --- Main Layout --- */
+.layout-container {
+    max-width: 1000px;
+    margin: 24px auto;
+    display: flex;
+    gap: 24px;
+    padding: 0 20px;
+    align-items: flex-start;
+}
+
+.left-sidebar {
+    width: 312px;
+    flex-shrink: 0;
+}
+
+.main-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* --- Reusable Card Style --- */
+.card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.section-header {
+    padding: 16px;
+    font-size: 16px;
+    font-weight: 500;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 8px;
+}
+
+/* --- Subreddit Display Card (Left Sidebar) --- */
+.sub-banner {
+    height: 70px;
+    background-color: var(--brand-blue);
+    border-radius: 4px 4px 0 0;
+}
+
+.sub-info {
+    padding: 12px;
+    position: relative;
+}
+
+.sub-avatar {
+    width: 54px;
+    height: 54px;
+    background-color: #fff;
+    border-radius: 50%;
+    border: 3px solid var(--card-bg);
+    position: absolute;
+    top: -20px;
+    background-image: url('https://styles.redditmedia.com/t5_2qihz/styles/communityIcon_12cwosnczu411.png');
+    background-size: cover;
+}
+
+.sub-info h2 {
+    margin-top: 24px;
+    font-size: 16px;
+}
+
+.sub-desc {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin: 12px 0;
+    line-height: 1.4;
+}
+
+.sub-stats {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 16px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.sub-stats strong {
+    font-size: 16px;
+    color: var(--text-main);
+}
+
+.join-btn {
+    width: 100%;
+    padding: 8px;
+    background-color: transparent;
+    color: var(--text-main);
+    border: 1px solid var(--text-main);
+    border-radius: 9999px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.join-btn:hover {
+    background-color: var(--hover-bg);
+}
+
+/* --- Threaded Comments (Middle) --- */
+.comments-section {
+    padding-bottom: 16px;
+}
+
+.comment-thread {
+    display: flex;
+    flex-direction: column;
+    padding-right: 16px;
+}
+
+.comment {
+    display: flex;
+    margin-bottom: 8px;
+}
+
+.vote-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 40px;
+    padding-top: 8px;
+}
+
+.vote-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--text-muted);
+}
+
+.vote-btn:hover.upvote { color: var(--upvote); }
+.vote-btn:hover.downvote { color: var(--downvote); }
+
+.vote-count {
+    font-size: 12px;
+    font-weight: 700;
+    margin: 4px 0;
+}
+
+.comment-body {
+    flex-grow: 1;
+    padding-top: 8px;
+}
+
+.comment-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.comment-author {
+    font-weight: 700;
+    color: var(--text-main);
+    text-decoration: none;
+}
+
+.comment-text {
+    font-size: 14px;
+    line-height: 21px;
+    margin-bottom: 8px;
+}
+
+.comment-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+}
+
+.action-btn:hover {
+    background-color: var(--hover-bg);
+    border-radius: 2px;
+}
+
+.replies {
+    margin-left: 20px;
+    border-left: 2px solid var(--thread-line);
+    padding-left: 8px;
+    transition: border-color 0.2s;
+}
+
+.replies:hover {
+    border-left-color: var(--thread-line-hover);
+}
+
+/* --- Top Upvoted Content (Bottom) --- */
+.post-preview {
+    display: flex;
+    padding: 8px 16px 16px 0;
+}
+
+.post-info {
+    padding-top: 8px;
+}
+
+.post-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: block;
+}
+
+.post-title {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.post-snippet {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
