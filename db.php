@@ -1,7 +1,12 @@
 <?php
-$conn = mysqli_connect("localhost", "root","","Worksh");
+$host = "localhost";
+$user = "root";
+$pass = "";
+$db   = "Worksh"; 
+
+$conn = mysqli_connect($host, $user, $pass, $db);
 
 if (!$conn){
-    die("Noh mampuih");
+    die("Connection failed: " . mysqli_connect_error());
 }
 ?>
