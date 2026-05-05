@@ -72,25 +72,24 @@ if there's a big green success messages, it has succeded (mcm mna nk eja success
 ----------------------------------------------------------------
 Step 6 - OTP (Buat la, lagi senang nampak)
 ----------------------------------------------------------------
+Alternative (if you just want to test without real email):
+    
+	
+1. Go to phpMyAdmin → scholarspace → otp_codes table
+2. After registering, you can see the OTP code directly in the table
+3. Copy it and paste it into the verify page and you can test the full flow without setting up Gmail
 
 
-  Alternative (if you just want to test without real email):
-    Go to phpMyAdmin → scholarspace → otp_codes table
-    After registering, you can see the OTP code directly in the table
-    Copy it and paste it into the verify page
-   This lets you test the full flow without setting up Gmail
-
-
-Kalau nak email:
+if you want email:
 Use any of your preferred Google account then pergi ke myaccount.google.com
 Pergi security, make sure 2 step verification is enables.
 Search app password lepastu create ScholarSpace and copy the password google generates.
 
 Then open mailer.php and fill in:
-      define('MAIL_FROM',     'here (there's probably my email sbb I yg upload :p.');
-      define('MAIL_PASSWORD', 'your random 16 char password');
+  1. define('MAIL_FROM',     'here (there's probably my email sbb I yg upload :p.');
+  2. define('MAIL_PASSWORD', 'your random 16 char password');
 
-    Save the file. 
+  3. Save the file. 
 
 ----------------------------------------------------------------
 Step 7 - Open the website
