@@ -103,43 +103,46 @@ Step 7 - Open the website
 ----------------------------------------------------------------
 EXPLANATION ON THE FILE!!!!!:
 ----------------------------------------------------------------
-  index.php         — Entry point, redirects to login or dashboard
-  login.php         — Login page (username OR email accepted)
-  register.php      — Registration (Step 1: account, Step 2: profile)
-  verify_otp.php    — OTP verification page after registration
-  dashboard.php     — Main feed after login
-  logout.php        — Clears session and redirects to login
-  db.php            — Database connection (edit if your MySQL
+1. index.php         — Entry point, redirects to login or dashboard
+  
+2. login.php         — Login page (username OR email accepted)
+  
+3. register.php      — Registration (Step 1: account, Step 2: profile)
+  
+4. verify_otp.php    — OTP verification page after registration
+  
+5. dashboard.php     — Main feed after login
+  
+6. logout.php        — Clears session and redirects to login
+  
+7. db.php            — Database connection (edit if your MySQL
                        username/password is not root/"")
-  mailer.php        — Email config (fill in Gmail credentials here)
-  styles.css        — All styling for every page
-  setup.sql         — Database schema + seed data (run once)
-  admin_reset.php   — Sets admin password (run once then delete)
-  PHPMailer\        — Email library (download separately, see Step 3)
-  uploads\profiles\ — Profile pictures uploaded by users
+					   
+8. mailer.php        — Email config (fill in Gmail credentials here)
+  
+9. styles.css        — All styling for every page
+  
+10. setup.sql         — Database schema + seed data (run once)
+  
+11. admin_reset.php   — Sets admin password (run once then delete)
+  
+12. PHPMailer\        — Email library (download separately, see Step 3) uploads\profiles\ — Profile pictures uploaded by users
 
 
 ----------------------------------------------------------------
 Common error:
 ----------------------------------------------------------------
 
-Connection failed: Unknown database 'scholarspace'"
-     You skipped Step 4. Create the database in phpMyAdmin first.
+1. Connection failed: Unknown database 'scholarspace'"
+Solution: You skipped Step 4. Create the database in phpMyAdmin first.
 
-Connection failed: Access denied"
-      Open db.php and check the $user and $pass variables.
-      Default XAMPP is: $user = "root"  $pass = ""
-      If you set a MySQL password, put it in $pass.
 
-Profile photo not uploading
-      Make sure the folder  uploads/profiles/  exists inside your
-      project folder. Create it manually if it's missing.
-      Right-click → New Folder → name it "profiles" inside "uploads".
-Call to undefined function" or PHPMailer errors
-      PHPMailer folder is missing or in the wrong place. See Step 3.
+3. Profile photo not uploading
+Solution: Make sure the folder  uploads/profiles/  exists inside your project folder. Create it manually if it's missing.Right-click → New Folder → name it "profiles" inside "uploads".
 
-White screen / blank page
-      Enable PHP error display for debugging. Open php.ini in XAMPP,
-      find "display_errors = Off" and change to "display_errors = On",
-      then restart Apache.
+4. Call to undefined function" or PHPMailer errors
+Solution: PHPMailer folder is missing or in the wrong place. See Step 3.
+
+5.White screen / blank page
+Solution: Enable PHP error display for debugging. Open php.ini in XAMPP, find "display_errors = Off" and change to "display_errors = On", then restart Apache.
 
