@@ -10,8 +10,9 @@ Needed software:
   3. A Gmail account (ONLY needed if you want OTP emails to actually
      send.)
 
-
+----------------------------------------------------------------
   Step 1 —  PLACE THE PROJECT IN THE RIGHT FOLDER (no you cant run this on visual studio sweetie :) )
+----------------------------------------------------------------
 
 Place the entire project folder inside XAMPP's htdocs folder.
 Folder name example: C:\xampp\htdocs\ScholarSpace\ (Navigate to your own xampp of just search htdocs)
@@ -19,7 +20,9 @@ Folder name example: C:\xampp\htdocs\ScholarSpace\ (Navigate to your own xampp o
 URL depends on nama folder so it'll be like: http://localhost/ScholarSpace/
 
 
+----------------------------------------------------------------
 Step 2 - Start XAMPP
+----------------------------------------------------------------
 
 
   1. Open XAMPP Control Panel
@@ -37,7 +40,9 @@ Go to: https://github.com/PHPMailer/PHPMailer
 2. Extract and then letak in one folder as our project
 
 
+----------------------------------------------------------------
 Step 4 - Database
+----------------------------------------------------------------
 
 
  Make sure XAMPP dah running. Then go to http://localhost/phpmyadmin
@@ -51,7 +56,9 @@ Open the file setup.sql from the project folder lepastu copy ALL the contents, p
 Kalau bnyak hijau, betul la tu
 
 
+----------------------------------------------------------------
 Step 5 - Admin password
+----------------------------------------------------------------
 
 
 Make sure XAMPP tengah running lepastu go to http://localhost/ScholarSpace/admin_reset.php
@@ -62,8 +69,9 @@ if there's a big green success messages, it has succeded (mcm mna nk eja success
     Username : admin
     Password : Admin@1234
 
-
+----------------------------------------------------------------
 Step 6 - OTP (Buat la, lagi senang nampak)
+----------------------------------------------------------------
 
 
   Alternative (if you just want to test without real email):
@@ -85,27 +93,14 @@ Then open mailer.php and fill in:
     Save the file. 
 
 ----------------------------------------------------------------
-  STEP 7 — OPEN THE WEBSITE
+Step 7 - Open the website
 ----------------------------------------------------------------
-
-  Go to:   http://localhost/ScholarSpace/
-
-  You should see the login page with the sunset background.
-
-  Test accounts you can create:
-    - Register with a matric number starting with D03 + year
-    - Year 23 or above (e.g. D032312345)  → registered as Student
-    - Year 22 or below (e.g. D032212345)  → registered as Graduate
-                                             (more fields will appear)
-
-  Admin account (created by admin_reset.php):
-    Username : admin
-    Password : Admin@1234
+  Go to:   http://localhost/"Nama Folder"/
 
 
-
-------------------------------------------------------------------------------------------
+----------------------------------------------------------------
 EXPLANATION ON THE FILE!!!!!:
+----------------------------------------------------------------
   index.php         — Entry point, redirects to login or dashboard
   login.php         — Login page (username OR email accepted)
   register.php      — Registration (Step 1: account, Step 2: profile)
@@ -120,9 +115,11 @@ EXPLANATION ON THE FILE!!!!!:
   admin_reset.php   — Sets admin password (run once then delete)
   PHPMailer\        — Email library (download separately, see Step 3)
   uploads\profiles\ — Profile pictures uploaded by users
--------------------------------------------------------------------------------------------
 
-Error that I dah hadap:
+
+----------------------------------------------------------------
+Common error:
+----------------------------------------------------------------
 
 Connection failed: Unknown database 'scholarspace'"
      You skipped Step 4. Create the database in phpMyAdmin first.
