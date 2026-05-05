@@ -31,7 +31,10 @@ Step 2 - Start XAMPP
 
 ha done tu je.
 
+
+----------------------------------------------------------------
 Step 3 - Download PHPEmailer
+----------------------------------------------------------------
 
 Go to: https://github.com/PHPMailer/PHPMailer 
 
