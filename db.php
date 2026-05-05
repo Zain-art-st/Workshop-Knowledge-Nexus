@@ -2,11 +2,13 @@
 $host = "localhost";
 $user = "root";
 $pass = "";
-$db   = "Worksh"; 
+$db   = "scholarspace";
 
 $conn = mysqli_connect($host, $user, $pass, $db);
 
-if (!$conn){
+if (!$conn) {
     die("Connection failed: " . mysqli_connect_error());
 }
+
+mysqli_set_charset($conn, "utf8mb4");
 ?>
