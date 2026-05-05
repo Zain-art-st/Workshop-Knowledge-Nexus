@@ -137,12 +137,12 @@ Common error:
 Solution: You skipped Step 4. Create the database in phpMyAdmin first.
 
 
-3. Profile photo not uploading
+2. Profile photo not uploading
 Solution: Make sure the folder  uploads/profiles/  exists inside your project folder. Create it manually if it's missing.Right-click → New Folder → name it "profiles" inside "uploads".
 
-4. Call to undefined function" or PHPMailer errors
+3. Call to undefined function" or PHPMailer errors
 Solution: PHPMailer folder is missing or in the wrong place. See Step 3.
 
-5.White screen / blank page
+4.White screen / blank page
 Solution: Enable PHP error display for debugging. Open php.ini in XAMPP, find "display_errors = Off" and change to "display_errors = On", then restart Apache.
 
