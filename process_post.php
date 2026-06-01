@@ -34,7 +34,7 @@ if (isset($_POST["submit-post"])) { //Check if the user clicked the POST button
         if ($_FILES['image_file']['size'] <= 10485760) //10485760 is 10MB in binary
             $unique_img = time() . '_img_' . basename($_FILES['image_file']['name']);
             if (move_uploaded_file($_FILES['image_file']['tmp_name'],$upload_dir . $unique_img)) {
-                $image_url = $upload_dir . $ unique_img;
+                $image_url = $upload_dir . $unique_img;
             }
     }
 }

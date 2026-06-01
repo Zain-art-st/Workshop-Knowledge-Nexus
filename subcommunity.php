@@ -137,6 +137,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     <title><?php echo htmlspecialchars($subcommunity['name']); ?> – ScholarSpace</title>
     <link rel="stylesheet" href="styles.css">
     <style>
+        .profile-picture-and-name {display: flex; align-items: center; gap: 10px}
+        .Three-Vertical-Dots {font-size: 30px; background: transparent; color: white; border: none}
         .sub-banner-wrap { position: relative; height: 200px; background: linear-gradient(135deg, rgba(79,142,247,.2), rgba(192,109,232,.15)); border-radius: 16px; margin-bottom: 20px; overflow: hidden; }
         .sub-banner-wrap::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, var(--accent), var(--accent2)); opacity: 0.1; }
         .sub-info-card { display: flex; gap: 20px; align-items: flex-end; padding: 20px; position: relative; z-index: 1; }
@@ -148,11 +150,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         .stat-item { display: flex; flex-direction: column; }
         .stat-item strong { font-size: 18px; font-weight: 700; }
         .stat-item span { font-size: 12px; color: var(--text-muted); }
-        .join-btn-wrap { display: flex; gap: 8px; }
+        .join-btn-wrap { display: flex; gap: 8px; flex-direction: column;align-items: flex-end }
         .join-btn-wrap form { display: contents; }
         .comment-thread { margin-left: 20px; border-left: 2px solid var(--card-border); padding-left: 16px; }
         .comment { display: flex; gap: 12px; margin-bottom: 12px; }
-        .vote-column { display: flex; flex-direction: column; align-items: center; gap: 4px; }
         .vote-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 16px; padding: 4px; transition: color 0.2s; }
         .vote-btn:hover { color: var(--accent); }
         .vote-btn.upvote:hover { color: var(--success); }
@@ -172,12 +173,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         .replies { margin-left: 20px; border-left: 2px solid var(--card-border); padding-left: 16px; }
         .post-preview { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--card-border); }
         .post-preview:last-child { border-bottom: none; }
-        .post-info { flex: 1; }
+        .post-info {display: flex; flex: 1; justify-content: space-between;}
         .post-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
         .post-title { font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--text-main); cursor: pointer; }
         .post-title:hover { color: var(--accent); }
         .post-snippet { font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px; }
         .post-image { width: 100%; max-width: 300px; height: 200px; object-fit: cover; border-radius: 10px; margin: 10px 0; }
+        .post-menu {position: relative; display: inline-block;}
+        .dropdown-menu {display: none;position: absolute; top: 100%; right: 0; min-width: 150px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,.2); z-index: 1000; background:#1e1e35; border:1px solid var(--card-border);}
+        .dropdown-menu a {display: block; padding: 12px 16px; color:var(--text-main); text-decoration: none;}
+        .dropdown-menu a:hover {background:rgba(255,255,255,.07); border-radius: 8px;}
+        .report-modal {display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 9999; justify-content: center; align-items: center;}
+        .report-content {width: 600px; max-width: 90%; background: #2d2d2d; border-radius: 30px; padding: 40px; color: white;}
+        .report-content h2 {text-align: center; margin-bottom: 10px;}
+        .report-content p {text-align: center; margin-bottom: 30px;}
+        .report-option {display: flex; align-items:center; gap: 15px; margin-bottom: 20px; font-size: 18px; cursor: pointer;}
+        .report-option input[type="radio"] {width: 25px; height: 25px;}
+        .confirm-btn {width: 100%; padding: 15px; border: none; border-radius: 30px; margin-top: 20px; font-size: 18px; font-weight: bold; cursor: pointer;}
+        .close-btn {float: right; font-size: 28px; cursor: pointer;}
     </style>
 </head>
 <body>
@@ -254,26 +267,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                     <button type="submit" class="btn btn-primary" style="width: 120px; padding: 8px;">Join</button>
                                 </form>
                             <?php endif; ?>
+
+                            <!-- Create Post Section (only for members) -->
+                            <?php if ($is_member): ?>
+                            <a href="create_post.php?sub_id=<?php echo $sub_id; ?>" class="btn btn-primary">
+                                 Create a post
+                            </a>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
-
-                <!-- Create Post Section (only for members) -->
-                <?php if ($is_member): ?>
-                <div class="card create-post-box">
-                    <div class="card-body">
-                        <a href="create_post.php?sub_id=<?php echo $sub_id; ?>" class="btn btn-primary">
-                            ✏️ Create a post
-                        </a>
-                    </div>
-                </div>
-                <?php endif; ?>
 
                 <!-- Posts Section -->
                 <div class="card">
                     <div style="padding: 20px;">
                         <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 700; margin-bottom: 16px;">
-                            Current Discussion
+                            Top post now
                         </h3>
 
                         <?php if (count($posts) === 0): ?>
@@ -283,32 +292,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                         <?php else: ?>
                             <?php foreach ($posts as $post): ?>
                             <div class="post-preview">
-                                <div class="vote-column">
-                                    <button class="vote-btn upvote" onclick="vote(<?php echo $post['id']; ?>, 'upvote')">▲</button>
-                                    <span class="vote-count"><?php echo $post['upvotes'] - $post['downvotes']; ?></span>
-                                    <button class="vote-btn downvote" onclick="vote(<?php echo $post['id']; ?>, 'downvote')">▼</button>
-                                </div>
                                 <div class="post-info">
-                                    <div class="post-meta">
-                                        Posted by <a href="profile.php?user=<?php echo urlencode($post['username']); ?>" class="comment-author">
-                                            <?php echo htmlspecialchars($post['username']); ?>
-                                        </a> in r/<?php echo htmlspecialchars($subcommunity['slug']); ?> • 
-                                        <?php 
-                                            $time_diff = time() - strtotime($post['created_at']);
-                                            if ($time_diff < 60) echo "now";
-                                            elseif ($time_diff < 3600) echo floor($time_diff / 60) . " min ago";
-                                            elseif ($time_diff < 86400) echo floor($time_diff / 3600) . " hours ago";
-                                            else echo floor($time_diff / 86400) . " days ago";
-                                        ?>
+                                    <div class="post-left">
+                                        <div class="post-meta">
+                                            <div class="profile-picture-and-name">
+                                                <img src="uploads/profiles/<?php echo htmlspecialchars($post['profile_photo']);?>" alt="Profile" class="profile-avatar">
+                                                <a href="profile.php?user=<?php echo urlencode($post['username']); ?>" class="comment-author">
+                                                <?php echo htmlspecialchars($post['username']); ?>
+                                                </a>• 
+                                            
+                                                <?php 
+                                                $time_diff = time() - strtotime($post['created_at']);
+                                                if ($time_diff < 60) echo "now";
+                                                elseif ($time_diff < 3600) echo floor($time_diff / 60) . " min ago";
+                                                elseif ($time_diff < 86400) echo floor($time_diff / 3600) . " hours ago";
+                                                else echo floor($time_diff / 86400) . " days ago";
+                                                ?>
+                                            </div>
+                                        </div>
+                                        <h4 class="post-title"><?php echo htmlspecialchars($post['title']); ?></h4>
+                                        <p class="post-snippet"><?php echo htmlspecialchars(substr($post['content'], 0, 150)); ?></p>
+                                        <?php if ($post['image_url']): ?>
+                                            <img src="<?php echo htmlspecialchars($post['image_url']); ?>" alt="Post image" class="post-image">
+                                        <?php endif; ?>
+                                        <div class="comment-actions">
+                                            <div class="vote-group">
+                                                <button type="button" class="vote-btn upvote" name="vote-action" value="upvote" onclick="vote(<?php echo $post['id']; ?>, 'upvote')">▲</button>
+                                                <span class="vote-count" id="upvotes-<?php echo $post['id'];?>"><?php echo $post['upvotes']; ?></span>
+                                                <span style="width:1px; height: 20px; background: rgba(255,255,255,.25)"></span>
+                                                <span class="vote-count" id="downvotes-<?php echo $post['id'];?>"><?php echo $post['downvotes'];?></span>
+                                                <button type="button" class="vote-btn downvote" name="vote-action" value="downvote" onclick="vote(<?php echo $post['id']; ?>, 'downvote')">▼</button>
+                                            </div>
+                                            <button class="action-btn" onclick="alert('Comments coming soon!')">💬 <?php echo $post['comment_count']; ?> Comments</button>
+                                            <button class="action-btn" onclick="alert('Share feature coming soon!')">Share</button>
+                                        </div>
                                     </div>
-                                    <h4 class="post-title"><?php echo htmlspecialchars($post['title']); ?></h4>
-                                    <p class="post-snippet"><?php echo htmlspecialchars(substr($post['content'], 0, 150)); ?></p>
-                                    <?php if ($post['image_url']): ?>
-                                        <img src="<?php echo htmlspecialchars($post['image_url']); ?>" alt="Post image" class="post-image">
-                                    <?php endif; ?>
-                                    <div class="comment-actions">
-                                        <button class="action-btn" onclick="alert('Comments coming soon!')">💬 <?php echo $post['comment_count']; ?> Comments</button>
-                                        <button class="action-btn" onclick="alert('Share feature coming soon!')">Share</button>
+                                    <div class="post-right">
+                                        <div class="post-menu">
+                                             <button class="action-btn" onclick="toggleMenu(this)" style="font-size: 20px">&#8942;</button>
+                                             <div class="dropdown-menu">
+                                                <a href="#" onclick="openReportModal(<?php echo $post['id']; ?>); return false;">Report</a>
+                                             </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -361,6 +386,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         </div>
     </div>
 
+    <div id="reportModal" class="report-modal">
+        <div class="report-content">
+            <span class="close-btn" onclick="closeReportModal()">&times;</span>
+
+            <h2>REPORT</h2>
+            <p>Tell us what's going on</p>
+
+            <form id="reportForm">
+                <input type="hidden" id="reportPostId" name="post_id">
+
+                <label class="report-option">
+                    <input type="radio" name="reason" value="Explicit content">
+                    Explicit content
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="reason" value="Harassment and bullying">
+                    Harassment and bullying
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="reason" value="Harmful or dangerous acts">
+                    Harmful or dangerous acts
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="reason" value="Self harm">
+                    Suicidal, self harm or disorders that caused harm
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="reason" value="Fake news">
+                    Fake news
+                </label>
+
+                <button type="button" class="confirm-btn" onclick="submitReport()">
+                    Confirm
+                </button>
+            </form>
+        </div>
+    </div>
+
     <script>
         function vote(postId, voteType) {
             <?php if (!isset($_SESSION['user_id'])): ?>
@@ -368,9 +435,128 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 return;
             <?php endif; ?>
             
-            // Placeholder for voting functionality
-            alert('Vote recorded: ' + voteType + ' on post ' + postId);
-            // location.reload();
+            fetch("vote.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body:
+                    "post_id=" + encodeURIComponent(postId) +
+                    "&vote_type=" + encodeURIComponent(voteType)
+            })
+            .then(response => response.json())
+            .then(data => {
+
+                if(data.success)
+                {
+                    document.getElementById(
+                        "upvotes-" + postId
+                    ).textContent = data.upvotes;
+
+                    document.getElementById(
+                        "downvotes-" + postId
+                    ).textContent = data.downvotes;
+                }
+                else
+                {
+                    alert(data.message);
+                    return
+                }
+            })
+            .catch(error => {
+                console.error(error);
+            });
+        }
+
+        function toggleMenu(button)
+        {
+            const menu = button.nextElementSibling;
+
+            // Close all other menus
+            document.querySelectorAll('.dropdown-menu').forEach(m => {
+                if (m !== menu) 
+                {
+                    m.style.display = 'none';
+                }
+            });
+
+            // Toggle current menu
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+
+            // Close menu when clicking elsewhere
+            document.addEventListener('click', function(e) {
+                if(!e.target.closest('.post-menu')) {
+                    document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                        menu.style.display = 'none';
+                    });
+                }
+            });
+        }
+
+        function openReportModal(postId)
+        {
+            document.getElementById("reportPostId").value = postId;
+            document.getElementById("reportModal").style.display = "flex";
+        }
+
+        function closeReportModal()
+        {
+            document.getElementById("reportModal").style.display = "none";
+        }
+
+        window.onclick = function(event)
+        {
+            const modal = document.getElementById("reportModal");
+
+            if(event.target === modal)
+            {
+                closeReportModal();
+            }
+        }
+
+        function submitReport()
+        {
+            const postId = document.getElementById("reportPostId").value;
+
+            const reason = document.querySelector('input[name="reason"]:checked');
+
+            if(!reason)
+            {
+                alert("Please select a reason");
+                return;
+            }
+
+            fetch("report_post.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type":
+                    "application/x-www-form-urlencoded"
+                },
+                body:
+                    "post_id=" + encodeURIComponent(postId) +
+                    "&reason=" + encodeURIComponent(reason.value)
+            })
+            .then(response => response.text())
+            .then(data => {
+                data = data.trim();
+                
+                if(data === "success")
+                {
+                    alert("Report submitted");
+                    closeReportModal();
+                }
+                else if(data === "already_reported")
+                {
+                    alert("You have already reported this post");
+                }
+                else
+                {
+                    alert("Failed to submit report");
+                }
+            })
+            .catch(error => {
+                console.error(error);
+            });
         }
     </script>
 </body>

@@ -46,6 +46,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_post'])) {
     $title = trim($_POST['title'] ?? '');
     $content = trim($_POST['content'] ?? '');
     $link_url = trim($_POST['link_url'] ?? '');
+
+    if($link_url === '')
+        {
+        $link_url = null;
+        }
     
     // Validation
     if (empty($title)) {
@@ -54,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_post'])) {
         $error = "❌ Title must be at least 3 characters. You have " . strlen($title) . " character(s).";
     } elseif (strlen($title) > 300) {
         $error = "❌ Title must not exceed 300 characters.";
+        $title = "";
     } else {
         $image_url = null;
         
@@ -180,7 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_post'])) {
                                 <label>Post Title <span style="color: var(--danger);">*</span> (min 3 chars)</label>
                                 <input type="text" name="title" class="form-group input" 
                                        placeholder="Enter an interesting title..."
-                                       value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>"
+                                       value="<?php echo htmlspecialchars($title ?? ''); ?>"
                                        required>
                                 <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
                                     <span id="title-count">0</span>/300 characters
@@ -208,14 +214,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_post'])) {
                                        style="display: none;" onchange="previewImage(this)">
                                 <img id="imagePreview" class="upload-preview" style="display: none;">
                             </div>
-
-                            <div class="form-group">
-                                <label>Title <span style="color: var(--danger);">*</span> (min 3 chars)</label>
-                                <input type="text" name="title" class="form-group input" 
-                                       placeholder="Enter an interesting title..."
-                                       value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>"
-                                       required>
-                            </div>
                         </div>
 
                         <!-- Link Tab -->
@@ -224,21 +222,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_post'])) {
                                 <label>URL</label>
                                 <input type="url" name="link_url" class="form-group input" 
                                        placeholder="https://example.com">
-                            </div>
-
-                            <div class="form-group">
-                                <label>Title <span style="color: var(--danger);">*</span> (min 3 chars)</label>
-                                <input type="text" name="title" class="form-group input" 
-                                       placeholder="Enter an interesting title..."
-                                       value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>"
-                                       required>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Description (Optional)</label>
-                                <textarea name="content" class="form-group textarea" 
-                                          placeholder="Add context about the link..."
-                                          style="min-height: 100px;"></textarea>
                             </div>
                         </div>
 
@@ -309,14 +292,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_post'])) {
         }, false);
 
         // Character counter
-        const titleInputs = document.querySelectorAll('input[name="title"]');
-        titleInputs.forEach(input => {
-            input.addEventListener('input', () => {
-                const titleCount = document.getElementById('title-count');
-                if (titleCount) {
-                    titleCount.textContent = input.value.length;
-                }
-            });
+        const titleInput = document.querySelector('input[name="title"]');
+        const titleCount = document.getElementById('title-count');
+        
+        titleInput.addEventListener('input', () => {
+            titleCount.textContent = titleInput.value.length;
         });
     </script>
 </body>
