@@ -97,10 +97,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         mysqli_stmt_bind_param($join_stmt, "ii", $user_id, $sub_id);
         if (mysqli_stmt_execute($join_stmt)) {
             // Update member count
-            $update_count = "UPDATE subcommunities SET member_count = member_count + 1 WHERE id = ? AND id NOT IN (SELECT sub_id FROM sub_memberships WHERE sub_id = ? AND user_id = ?)";
-            $count_stmt = mysqli_prepare($conn, $update_count);
-            mysqli_stmt_bind_param($count_stmt, "iii", $sub_id, $sub_id, $user_id);
-            mysqli_stmt_execute($count_stmt);
             $is_member = true;
             $member_role = 'member';
         }
@@ -109,14 +105,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $leave_stmt = mysqli_prepare($conn, $leave_query);
         mysqli_stmt_bind_param($leave_stmt, "ii", $user_id, $sub_id);
         if (mysqli_stmt_execute($leave_stmt)) {
-            $update_count = "UPDATE subcommunities SET member_count = GREATEST(member_count - 1, 1) WHERE id = ?";
-            $count_stmt = mysqli_prepare($conn, $update_count);
-            mysqli_stmt_bind_param($count_stmt, "i", $sub_id);
-            mysqli_stmt_execute($count_stmt);
             $is_member = false;
             $member_role = null;
         }
     }
+
+    // Get total members of a subcommunity
+    $countMember_query = "SELECT COUNT(*) AS total FROM sub_memberships WHERE sub_id = ?";
+    $countMember_stmt = mysqli_prepare($conn, $countMember_query);
+    mysqli_stmt_bind_param($countMember_stmt, "i", $sub_id);
+    mysqli_stmt_execute($countMember_stmt);
+
+    $countMember_result = mysqli_stmt_get_result($countMember_stmt);
+    $countMember_row = mysqli_fetch_assoc($countMember_result);
+
+    $total_members = $countMember_row['total'];
+
+    // Update member count of subcommunities table
+    $updateMemberCount_query = "UPDATE subcommunities SET member_count = ? WHERE id = ?";
+    $updateMemberCount_stmt = mysqli_prepare($conn, $updateMemberCount_query);
+    mysqli_stmt_bind_param($updateMemberCount_stmt, "ii", $total_members, $sub_id);
+
+    mysqli_stmt_execute($updateMemberCount_stmt);
     
     // Refresh member count
     $refresh_query = "SELECT member_count FROM subcommunities WHERE id = ?";
