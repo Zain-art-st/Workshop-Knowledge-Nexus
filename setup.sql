@@ -123,3 +123,40 @@ CREATE TABLE IF NOT EXISTS comments (
 
 ALTER TABLE subcommunities ADD COLUMN IF NOT EXISTS banner_image VARCHAR(255) DEFAULT NULL;
 ALTER TABLE subcommunities ADD COLUMN IF NOT EXISTS rules TEXT DEFAULT NULL;
+ALTER TABLE subcommunities ADD COLUMN IF NOT EXISTS banner_image VARCHAR(255) DEFAULT NULL;
+ALTER TABLE subcommunities ADD COLUMN IF NOT EXISTS rules TEXT DEFAULT NULL;
+
+
+-- edit: add kyc columns to user
+ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_status  ENUM('none','pending','approved','rejected') DEFAULT 'none';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_image   VARCHAR(255) DEFAULT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS kyc_reason  VARCHAR(255) DEFAULT NULL; -- rejection reason
+
+-- Documents table 
+CREATE TABLE IF NOT EXISTS documents (
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    owner_id     INT NOT NULL,
+    title        VARCHAR(300) NOT NULL DEFAULT 'Untitled Document',
+    content      LONGTEXT,
+    share_token  VARCHAR(64)  NOT NULL UNIQUE,
+    share_mode   ENUM('private','view','edit') DEFAULT 'private',
+    sub_id       INT DEFAULT NULL,  -- if posted to a sub
+    post_id      INT DEFAULT NULL,  -- linked post if shared to sub
+    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (sub_id)   REFERENCES subcommunities(id) ON DELETE SET NULL,
+    FOREIGN KEY (post_id)  REFERENCES posts(id) ON DELETE SET NULL
+);
+
+ --Document collaborators 
+CREATE TABLE IF NOT EXISTS document_shares (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    doc_id      INT NOT NULL,
+    user_id     INT NOT NULL,
+    permission  ENUM('view','edit') DEFAULT 'view',
+    shared_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_share (doc_id, user_id),
+    FOREIGN KEY (doc_id)  REFERENCES documents(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
