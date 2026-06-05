@@ -320,7 +320,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                                 ?>
                                             </div>
                                         </div>
-                                        <h4 class="post-title"><?php echo htmlspecialchars($post['title']); ?></h4>
+                                        <h4 class="post-title" onclick="window.location.href='post.php?id=<?php echo $post['id']; ?>'">
+                                            <a href="post.php?id=<?php echo $post['id']; ?>">
+                                                <?php echo htmlspecialchars($post['title']); ?>
+                                            </a>
+                                        </h4>
                                         <p class="post-snippet"><?php echo htmlspecialchars(substr($post['content'], 0, 150)); ?></p>
                                         <?php if ($post['image_url']): ?>
                                             <img src="<?php echo htmlspecialchars($post['image_url']); ?>" alt="Post image" class="post-image">
@@ -333,7 +337,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                                 <span class="vote-count" id="downvotes-<?php echo $post['id'];?>"><?php echo $post['downvotes'];?></span>
                                                 <button type="button" class="vote-btn downvote" name="vote-action" value="downvote" onclick="vote(<?php echo $post['id']; ?>, 'downvote')">▼</button>
                                             </div>
-                                            <button class="action-btn" onclick="alert('Comments coming soon!')">💬 <?php echo $post['comment_count']; ?> Comments</button>
+                                            <button class="action-btn" onclick="window.location.href='post.php?id=<?php echo $post['id']; ?>'">
+                                                💬 <?php echo $post['comment_count']; ?> Comments
+                                            </button>
                                             <button class="action-btn" onclick="alert('Share feature coming soon!')">Share</button>
                                         </div>
                                     </div>
