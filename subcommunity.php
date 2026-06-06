@@ -321,9 +321,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                             </div>
                                         </div>
                                         <h4 class="post-title" onclick="window.location.href='post.php?id=<?php echo $post['id']; ?>'">
-                                            <a href="post.php?id=<?php echo $post['id']; ?>">
                                                 <?php echo htmlspecialchars($post['title']); ?>
-                                            </a>
                                         </h4>
                                         <p class="post-snippet"><?php echo htmlspecialchars(substr($post['content'], 0, 150)); ?></p>
                                         <?php if ($post['image_url']): ?>
