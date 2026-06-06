@@ -19,18 +19,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_password'])) {
         $error = "Password must be at least 6 characters long.";
     } else {
         //check expiration
-        $stmt = mysqli_prepare($conn, "SELECT id FROM users WHERE email = ? AND reset_otp = ? AND reset_otp_expiry > NOW() LIMIT 1");
-        mysqli_stmt_bind_param($stmt, "ss", $email, $otp);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
+    $stmt = mysqli_prepare($conn, "SELECT id, expires_at FROM otp_codes WHERE email = ? AND otp = ? AND used = 0 ORDER BY created_at DESC LIMIT 1");
+    mysqli_stmt_bind_param($stmt, "ss", $email, $otp);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
 
-        if ($row = mysqli_fetch_assoc($result)) {
+    $otp_row = mysqli_fetch_assoc($result);
+
+        if ($otp_row && strtotime($otp_row['expires_at']) > time()) {
             //Hash the new password
             $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-            $update_stmt = mysqli_prepare($conn, "UPDATE users SET password = ?, reset_otp = NULL, reset_otp_expiry = NULL WHERE email = ?");
+            $update_stmt = mysqli_prepare($conn, "UPDATE users SET password = ? WHERE email = ?");            
             mysqli_stmt_bind_param($update_stmt, "ss", $hashed_password, $email);
             
             if (mysqli_stmt_execute($update_stmt)) {
+
+                // Mark OTP as used
+                $used_stmt = mysqli_prepare($conn, "UPDATE otp_codes SET used = 1 WHERE id = ?");
+                mysqli_stmt_bind_param($used_stmt, "i", $otp_row['id']);
+                mysqli_stmt_execute($used_stmt);
+
                 header("Location: login.php?reset=success");
                 exit();
             } else {

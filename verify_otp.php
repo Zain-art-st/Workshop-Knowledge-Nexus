@@ -83,18 +83,29 @@ if (isset($_POST['resend_otp'])) {
                              (user_id,job_status,company,job_title,salary_range,education_level,field_of_study,graduation_year,linkedin_url,bio,skills)
                              VALUES (?,?,?,?,?,?,?,?,?,?,?)");
                         $gy=!empty($extra['graduation_year'])?$extra['graduation_year']:null;
+
+                        $job_status = $extra['job_status'] ?? 'unemployed';
+                        $company = $extra['company'] ?? '';
+                        $job_title = $extra['job_title'] ?? '';
+                        $salary_range = $extra['salary_range'] ?? '';
+                        $education_level = $extra['education_level'] ?? 'bachelor';
+                        $field_of_study = $extra['field_of_study'] ?? '';
+                        $linkedin_url = $extra['linkedin_url'] ?? '';
+                        $bio = $extra['bio'] ?? '';
+                        $skills = $extra['skills'] ?? '';
+
                         mysqli_stmt_bind_param($g,"issssssssss",
                             $new_user_id,
-                            $extra['job_status']??'unemployed',
-                            $extra['company']??'',
-                            $extra['job_title']??'',
-                            $extra['salary_range']??'',
-                            $extra['education_level']??'bachelor',
-                            $extra['field_of_study']??'',
+                            $job_status,
+                            $company,
+                            $job_title,
+                            $salary_range,
+                            $education_level,
+                            $field_of_study,
                             $gy,
-                            $extra['linkedin_url']??'',
-                            $extra['bio']??'',
-                            $extra['skills']??''
+                            $linkedin_url,
+                            $bio,
+                            $skills
                         );
                         mysqli_stmt_execute($g);
                     }

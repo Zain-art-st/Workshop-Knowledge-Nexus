@@ -20,17 +20,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_otp'])) {
         if (mysqli_fetch_assoc($result)) {
             //Generate OTP
             $otp = sprintf("%06d", mt_rand(1, 999999));
+
+            // Remove old OTPs for this email
+            $delete_stmt = mysqli_prepare($conn, "DELETE FROM otp_codes WHERE email = ?");
+            mysqli_stmt_bind_param($delete_stmt, "s", $email);
+            mysqli_stmt_execute($delete_stmt);
+
+            // Save new OTP
+            $insert_stmt = mysqli_prepare($conn, "INSERT INTO otp_codes (email, otp, expires_at) 
+            VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))");
+
+            mysqli_stmt_bind_param($insert_stmt, "ss", $email, $otp);
             
-            //expiry 15 minute
-            $update_stmt = mysqli_prepare($conn, "UPDATE users SET reset_otp = ?, reset_otp_expiry = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE email = ?");
-            mysqli_stmt_bind_param($update_stmt, "ss", $otp, $email);
-            
-            if (mysqli_stmt_execute($update_stmt)) {
-                $subject = "ScholarSpace - Password Reset OTP";
-                $message = "Your password reset OTP is: $otp\n\nThis OTP will expire in 15 minutes.";
-                $headers = "From: noreply@scholarspace.com";
-                
-                @mail($email, $subject, $message, $headers); // Suppress errors(can check database for otp)
+            if (mysqli_stmt_execute($insert_stmt)) {
+
+              include_once "mailer.php";
+              $sent = sendOTPEmail($email, "User", $otp); // can check database for otp
+              if (!$sent) {
+                $error = "Failed to send OTP email.";
+              } 
                 
                 header("Location: reset_password.php?email=" . urlencode($email));
                 exit();
