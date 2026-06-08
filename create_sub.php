@@ -21,24 +21,24 @@ if (isset($_POST['next'])) {
 }
 
 $topics = [
-    ['label' => 'Technology'],
-    ['label' => 'Study'],
-    ['label' => 'Gaming'],
-    ['label' => 'Creative'],
-    ['label' => 'Food'],
-    ['label' => 'Music'],
-    [ 'label' => 'Fitness'],
-    ['label' => 'Travel'],
-    ['label' => 'Humour'],
-    [ 'label' => 'Career'],
-    [ 'label' => 'Pets'],
-    [ 'label' => 'Science'],
-    [ 'label' => 'Lifestyle'],
-    [ 'label' => 'News'],
-    ['label' => 'Anime & Manga'],
-    ['label' => 'Rant'],
-    ['label' => 'Hobby'],
-    ['label' => 'Other']
+    ['emoji' => '💻', 'label' => 'Technology'],
+    ['emoji' => '📚', 'label' => 'Study'],
+    ['emoji' => '🎮', 'label' => 'Gaming'],
+    ['emoji' => '🎨', 'label' => 'Creative'],
+    ['emoji' => '🍜', 'label' => 'Food'],
+    ['emoji' => '🎵', 'label' => 'Music'],
+    ['emoji' => '🏋️', 'label' => 'Fitness'],
+    ['emoji' => '🌍', 'label' => 'Travel'],
+    ['emoji' => '😂', 'label' => 'Humour'],
+    ['emoji' => '💼', 'label' => 'Career'],
+    ['emoji' => '🐱', 'label' => 'Pets'],
+    ['emoji' => '🔬', 'label' => 'Science'],
+    ['emoji' => '🏠', 'label' => 'Lifestyle'],
+    ['emoji' => '📰', 'label' => 'News'],
+    ['emoji' => '🎭', 'label' => 'Anime & Manga'],
+    ['emoji' => '🗣️', 'label' => 'Rant'],
+    ['emoji' => '❓', 'label' => 'Hobby'],
+    ['emoji' => '✨', 'label' => 'Other'],
 ];
 ?>
 <!DOCTYPE html>

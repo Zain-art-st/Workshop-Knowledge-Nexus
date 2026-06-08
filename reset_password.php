@@ -3,33 +3,35 @@ session_start();
 include "db.php";
 
 $error = "";
-$email = isset($_GET['email']) ? $_GET['email'] : '';
+$email = isset($_GET['email']) ? trim($_GET['email']) : '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_password'])) {
-    $email = trim($_POST['email']);
-    $otp = trim($_POST['otp']);
-    $new_password = $_POST['new_password'];
+    $email            = trim($_POST['email']);
+    $otp              = trim($_POST['otp']);
+    $new_password     = $_POST['new_password'];
     $confirm_password = $_POST['confirm_password'];
 
-    if (empty($otp) || empty($new_password) || empty($confirm_password)) {
+    if ($email === '' || $otp === '' || $new_password === '' || $confirm_password === '') {
         $error = "Please fill in all fields.";
+    } elseif (!preg_match('/^\d{6}$/', $otp)) {
+        $error = "OTP must be a 6-digit number.";
     } elseif ($new_password !== $confirm_password) {
         $error = "Passwords do not match.";
-    } elseif (strlen($new_password) < 6) { // Adjust based on your current password policy
+    } elseif (strlen($new_password) < 6) { // keep sync with signup policy
         $error = "Password must be at least 6 characters long.";
     } else {
-        //check expiration
+        // Verify the OTP and that it hasn't expired
         $stmt = mysqli_prepare($conn, "SELECT id FROM users WHERE email = ? AND reset_otp = ? AND reset_otp_expiry > NOW() LIMIT 1");
         mysqli_stmt_bind_param($stmt, "ss", $email, $otp);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
 
-        if ($row = mysqli_fetch_assoc($result)) {
-            //Hash the new password
+        if (mysqli_fetch_assoc($result)) {
+            // Hash the new password and clear the OTP so it can't be reused
             $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
             $update_stmt = mysqli_prepare($conn, "UPDATE users SET password = ?, reset_otp = NULL, reset_otp_expiry = NULL WHERE email = ?");
             mysqli_stmt_bind_param($update_stmt, "ss", $hashed_password, $email);
-            
+
             if (mysqli_stmt_execute($update_stmt)) {
                 header("Location: login.php?reset=success");
                 exit();
@@ -65,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_password'])) {
         <div class="error-msg" style="color: #ff6b6b; margin-bottom: 15px;"><?php echo $error; ?></div>
       <?php endif; ?>
 
-      <form method="POST" action="reset_password.php?email=<?php echo htmlspecialchars($email); ?>">
+      <form method="POST" action="reset_password.php">
         <input type="hidden" name="email" value="<?php echo htmlspecialchars($email); ?>">
         
         <div class="form-group">
