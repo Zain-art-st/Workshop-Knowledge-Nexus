@@ -8,8 +8,8 @@ require_once __DIR__ . '/PHPMailer/src/PHPMailer.php';
 require_once __DIR__ . '/PHPMailer/src/SMTP.php';
 
 // ─── CONFIGURE YOUR GMAIL HERE ───────────────────────────────────────────────
-define('MAIL_FROM',     'ashleesia@gmail.com');  
-define('MAIL_PASSWORD', 'pavx homq kolr aipc');        
+define('MAIL_FROM',     'yeohjiapoh@gmail.com');  
+define('MAIL_PASSWORD', 'uirk mxkf tktw ptek');        
 define('MAIL_FROM_NAME','ScholarSpace');
 // ─────────────────────────────────────────────────────────────────────────────
 

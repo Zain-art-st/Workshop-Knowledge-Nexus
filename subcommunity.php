@@ -55,7 +55,7 @@ if ($user_id) {
 }
 
 // Fetch posts with vote counts and author info
-$posts_query = "SELECT p.id, p.title, p.content, p.image_url, p.upvotes, p.downvotes, 
+$posts_query = "SELECT p.id, p.title, p.content, p.image_url, p.link_url, p.upvotes, p.downvotes, 
                        p.created_at, u.username, u.profile_photo,
                        (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count
                 FROM posts p
@@ -201,6 +201,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         .report-option input[type="radio"] {width: 25px; height: 25px;}
         .confirm-btn {width: 100%; padding: 15px; border: none; border-radius: 30px; margin-top: 20px; font-size: 18px; font-weight: bold; cursor: pointer;}
         .close-btn {float: right; font-size: 28px; cursor: pointer;}
+        .post-link {color: var(--accent); text-decoration: none; font-weight: 500; display: inline-block; margin: 10px 0; transition: 0.2s;}
+        .post-link:hover {color: #6fa8ff; text-decoration: underline;}
+        .post-link:visited {color: #b78cff;}
     </style>
 </head>
 <body>
@@ -327,6 +330,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                         <?php if ($post['image_url']): ?>
                                             <img src="<?php echo htmlspecialchars($post['image_url']); ?>" alt="Post image" class="post-image">
                                         <?php endif; ?>
+
+                                        <?php if (!empty($post['link_url'])): ?>
+                                            <a href="<?php echo htmlspecialchars(
+                                                preg_match('/^https?:\/\//', $post['link_url'])
+                                                ? $post['link_url']
+                                                : 'https://' . $post['link_url']
+                                            ); ?>" class="post-link" target="_blank" rel="noopener noreferrer">
+                                            <?php echo htmlspecialchars($post['link_url']);?></a>
+                                        <?php endif; ?>
+
+
                                         <div class="comment-actions">
                                             <div class="vote-group">
                                                 <button type="button" class="vote-btn upvote" name="vote-action" value="upvote" onclick="vote(<?php echo $post['id']; ?>, 'upvote')">▲</button>
@@ -338,7 +352,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                             <button class="action-btn" onclick="window.location.href='post.php?id=<?php echo $post['id']; ?>'">
                                                 💬 <?php echo $post['comment_count']; ?> Comments
                                             </button>
-                                            <button class="action-btn" onclick="alert('Share feature coming soon!')">Share</button>
                                         </div>
                                     </div>
                                     <div class="post-right">

@@ -290,6 +290,10 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             color: var(--text-muted);
             font-size: 14px;
         }
+
+        .post-link {color: var(--accent); text-decoration: none; font-weight: 500; display: inline-block; margin: 5px 0 10px 20px; transition: 0.2s;}
+        .post-link:hover {color: #6fa8ff; text-decoration: underline;}
+        .post-link:visited {color: #b78cff;}
     </style>
 </head>
 <body>
@@ -358,6 +362,16 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                <?php if($post['image_url']): ?>
                 <img src="<?php echo htmlspecialchars($post['image_url']); ?>" alt="Post image" class="post-image">
                <?php endif; ?>
+
+               <!-- Post Link -->
+                <?php if (!empty($post['link_url'])): ?>
+                    <a href="<?php echo htmlspecialchars(
+                        preg_match('/^https?:\/\//', $post['link_url'])
+                        ? $post['link_url']
+                        : 'https://' . $post['link_url']
+                    ); ?>" class="post-link" target="_blank" rel="noopener noreferrer">
+                    <?php echo htmlspecialchars($post['link_url']);?></a>
+                <?php endif; ?>
 
               <!-- Post Actions -->
                 <div class="post-actions">
