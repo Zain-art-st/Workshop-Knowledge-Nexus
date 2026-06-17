@@ -4,20 +4,7 @@ session_start();
 header('Content-Type: application/json');
 
 // 1. Konfigurasi Sambungan Pangkalan Data MySQL
-$db_host = 'localhost';
-$db_user = 'root';
-$db_pass = '';
-$db_name = 'scholarspace';
-
-$conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
-
-if ($conn->connect_error) {
-    echo json_encode(['status' => 'error', 'message' => 'Sambungan pangkalan data gagal: ' . $conn->connect_error]);
-    exit();
-}
-
-// Menetapkan set aksara kepada utf8mb4 sepadan dengan setup.sql
-$conn->set_charset("utf8mb4");
+include "db.php";
 
 // 2. Pengesahan Kaedah Permintaan (Hanya benarkan POST)
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

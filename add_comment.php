@@ -33,9 +33,27 @@ if(mysqli_num_rows($check_post_result) == 0)
     }
 
 // Insert comments
-$comment_query = "INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)";
+$parent_id = NULL;
+
+if(!empty($_POST['parent_id']))
+{
+    $clicked_id = intval($_POST['parent_id']);
+
+    $check_query = "SELECT parent_id FROM comments WHERE id = ?";
+    $check_stmt = mysqli_prepare($conn, $check_query);
+    mysqli_stmt_bind_param($check_stmt, "i", $clicked_id);
+    mysqli_stmt_execute($check_stmt);
+    $result = mysqli_fetch_assoc(mysqli_stmt_get_result($check_stmt));
+
+    if($result)
+    {
+        $parent_id = $result['parent_id'] ?: $clicked_id;
+    }
+}
+
+$comment_query = "INSERT INTO comments (post_id, user_id, content, parent_id) VALUES (?, ?, ?, ?)";
 $comment_stmt = mysqli_prepare($conn, $comment_query);
-mysqli_stmt_bind_param($comment_stmt, "iis", $post_id, $user_id, $content);
+mysqli_stmt_bind_param($comment_stmt, "iisi", $post_id, $user_id, $content, $parent_id);
 
 if(mysqli_stmt_execute($comment_stmt))
     {

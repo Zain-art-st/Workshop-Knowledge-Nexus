@@ -294,6 +294,14 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         .post-link {color: var(--accent); text-decoration: none; font-weight: 500; display: inline-block; margin: 5px 0 10px 20px; transition: 0.2s;}
         .post-link:hover {color: #6fa8ff; text-decoration: underline;}
         .post-link:visited {color: #b78cff;}
+        .child-comments {margin-top: 12px;}
+        .child-comment {margin-left: 55px; padding-left: 14px; border-left: 2px solid rgba(255, 255, 255, .08); border-bottom: none;}
+        .reply-box {margin-top: 12px; display: flex; flex-direction: column; gap: 10px;}
+        .reply-box textarea {width: 100%; min-height: 80px; padding: 12px; border-radius: 12px; background: rgba(255, 255, 255, .05); border: 1px solid var(--card-border); color: white; resize: none}
+        .reply-actions {display: flex; justify-content: flex-end; gap: 10px;}
+        .reply-cancel {background: none; border: none; color: var(--text-muted); cursor: pointer}
+        .reply-submit {background: var(--accent); border: none; color: white; padding: 8px 18px; border-radius: 10px; cursor:pointer}
+
     </style>
 </head>
 <body>
@@ -383,9 +391,11 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                         <button type="button" class="vote-btn downvote" onclick="vote(<?php echo $post['id']; ?>, 'downvote')">▼</button>
                     </div>
                     <button class="action-btn">💬 <?php echo count($comments); ?> Comments</button>
-                    <button class="action-btn">Share</button>
+
                 </div> 
             </div>
+
+        
 
         <!-- Comments Section -->
          <div class="card" style="margin-top: 20px;">
@@ -395,14 +405,30 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                 <?php if(count($comments) === 0): ?>
                     <div class="no-comments">No comments yet. Be the first!</div>
                 <?php else: ?>
-                    <?php foreach($comments as $comment): ?>
+
+                    <!-- Split parents and children -->
+                    <?php
+                    $parent_comments = [];
+                    $child_comments = [];
+
+                    foreach ($comments as $comment) {
+                        if (empty($comment['parent_id'])) {
+                            $parent_comments[] = $comment;
+                        } else {
+                            $child_comments[$comment['parent_id']][] = $comment;
+                        }
+                    }
+                    ?>
+                    <?php foreach($parent_comments as $comment): ?>
                         <div class="comment-item">
                             <div class="comment-avatar">
                                 <?php echo strtoupper(substr($comment['username'], 0, 1)); ?>
                             </div>
                             <div class="comment-body">
                                 <div class="comment-header">
-                                    <span class="comment-username"><?php echo htmlspecialchars($comment['username']); ?></span>
+                                    <span class="comment-username">
+                                        <?php echo htmlspecialchars($comment['username']); ?>
+                                    </span>
                                     <span class="comment-time">
                                     <?php
                                     $time_diff = time() - strtotime($comment['created_at']);
@@ -413,7 +439,9 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                                     ?>
                                     </span>
                                 </div>
-                                <div class="comment-content"><?php echo nl2br(htmlspecialchars($comment['content'])); ?></div>
+                                <div class="comment-content">
+                                    <?php echo nl2br(htmlspecialchars($comment['content'])); ?>
+                                </div>
                                 <div class="vote-group">
                                     <button type="button" class="vote-btn upvote" onclick="voteComment(<?php echo $comment['id']; ?>, 'upvote')">▲</button>
                                     <span class="vote-count" id="comment-upvotes-<?php echo $comment['id']; ?>">
@@ -427,19 +455,83 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                                     </span>
                                     <button type="button" class="vote-btn downvote" onclick="voteComment(<?php echo $comment['id']; ?>, 'downvote')">▼</button>
 
-                                    <button class="comment-vote-btn">Reply</button>
+                                    <button type="button" class="comment-vote-btn" onclick="showReplyBox(
+                                    <?php echo $comment['id']; ?>,
+                                    '<?php echo htmlspecialchars($comment['username']); ?>'
+                                    )">Reply</button>
                                 </div>
-                            </div>
+
+                                <div id="reply-container-<?php echo $comment['id']; ?>"></div>
+
+                                <!-- Child comments -->
+                                <?php
+                                if(isset($child_comments[$comment['id']])) : ?>
+                                    <div class="child-comments">
+                                    <?php foreach($child_comments[$comment['id']] as $child): ?>
+                                        <div class="comment-item">
+                                            <div class="comment-avatar">
+                                                <?php
+                                                echo strtoupper(substr($child['username'], 0, 1));
+                                                ?>
+                                            </div>
+
+                                            <div class="comment-body">
+                                                <div class="comment-header">
+                                                    <span class="comment-username">
+                                                        <?php echo htmlspecialchars($child['username']); ?>
+                                                    </span>
+
+                                                    <span class="comment-time">
+                                                        <?php
+                                                            $time_diff = time() - strtotime($child['created_at']);
+                                                            if ($time_diff < 60) echo "just now";
+                                                            else if ($time_diff < 3600) echo floor($time_diff / 60) . " min ago";
+                                                            else if ($time_diff < 86400) echo floor($time_diff / 3600) . " hours ago";
+                                                            else echo floor($time_diff / 86400) . " days ago";
+                                                            ?>
+                                                    </span>
+                                                </div>
+
+                                                <div class="comment-content">
+                                                    <?php echo nl2br(htmlspecialchars($child['content'])); ?>
+                                                </div>
+
+                                                <div class="vote-group">
+                                                    <button type="button" class="vote-btn upvote" onclick="voteComment(<?php echo $child['id']; ?>, 'upvote')">▲</button>
+                                                    <span class="vote-count" id="comment-upvotes-<?php echo $child['id']; ?>">
+                                                        <?php echo $child['upvotes']; ?>
+                                                    </span>
+
+                                                    <span style="width:1px; height: 20px; background: rgba(255,255,255,.25)"></span>
+
+                                                    <span class="vote-count" id="comment-downvotes-<?php echo $child['id']; ?>">
+                                                        <?php echo $child['downvotes']; ?>
+                                                    </span>
+                                                    <button type="button" class="vote-btn downvote" onclick="voteComment(<?php echo $child['id']; ?>, 'downvote')">▼</button>
+
+                                                    <button type="button" class="comment-vote-btn" onclick="showReplyBox(
+                                                    <?php echo $child['id']; ?>,
+                                                    '<?php echo htmlspecialchars($child['username']); ?>'
+                                                    )">Reply</button>
+                                                </div>
+
+                                                <div id="reply-container-<?php echo $child['id']; ?>"></div>
+                                            </div>
+                                        </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div> 
                         </div>
                     <?php endforeach; ?>
                 <?php endif; ?>
-            </div>
-
+                        
             <!-- Add Comment Form -->
             <?php if(isset($_SESSION['user_id'])): ?>
                 <form action="add_comment.php" method="POST" class="add-comment-form">
                     <textarea name="content" placeholder="Add a comment..." required style="min-height: 40px;"></textarea>
                     <input type="hidden" name="post_id" value="<?php echo $post_id; ?>">
+                    <input type="hidden" name="parent_id" value="">
                     <button type="submit">Post</button>
                 </form>
             <?php else: ?>
@@ -450,8 +542,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
          </div>
         </div>
     </div>
-</body>
-</html>
+
     <script>
         function vote(postId, voteType) {
             <?php if(!isset($_SESSION['user_id'])): ?>
@@ -525,6 +616,31 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             .catch(error => {
                 console.error(error);
             });
+        }
+
+        function showReplyBox(commentId, username)
+        {
+            document.querySelectorAll('.reply-box').forEach(box => box.remove());
+            const container = document.getElementById('reply-container-' + commentId);
+            container.innerHTML =
+            `
+            <form class="reply-box" action="add_comment.php" method="POST">
+            <textarea name="content" placeholder="Reply to @${username}" required>@${username} </textarea>
+            <input type="hidden" name="post_id" value="<?php echo $post_id; ?>">
+            <input type="hidden" name="parent_id" value="${commentId}">
+            <div class="reply-actions">
+            <button type="button" class="reply-cancel">
+            Cancel
+            </button>
+
+            <button class="reply-submit">
+            Comment
+            </button>
+            </div>
+            </form>
+            `;
+
+            container.querySelector('.reply-cancel').onclick = function() {container.innerHTML = '';};
         }
     </script>
 </body>
