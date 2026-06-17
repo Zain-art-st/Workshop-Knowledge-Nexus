@@ -585,6 +585,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 console.error(error);
             });
         }
+
+        // Unique key based on the page URL path to handle multiple pages
+        const scrollKey = `scrollPosition-${window.location.pathname}`;
+
+        // 1. Restore scroll position when the DOM is fully loaded
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedPosition = sessionStorage.getItem(scrollKey);
+            if (savedPosition) {
+            // Use standard scrollTo method to position the window
+            window.scrollTo(0, parseInt(savedPosition, 10));
+            }
+        });
+
+        // 2. Save scroll position right before the user leaves or refreshes
+        window.addEventListener('beforeunload', () => {
+            sessionStorage.setItem(scrollKey, window.scrollY);
+        });
     </script>
 </body>
 </html>

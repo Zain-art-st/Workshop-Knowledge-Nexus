@@ -40,8 +40,8 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
     <title><?php echo htmlspecialchars($post['title']); ?> - ScholarSpace</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        .post-container {max-width: 700px; margin: 0 auto; padding: 0 20px;}
-        .post-card {margin-bottom: 20px;}
+        .post-container {max-width: 700px; margin: 0 auto; padding: 0 20px; position: relative;}
+        .post-card {width: 100%; margin-bottom: 20px;}
 
         .post-header {
             display: flex;
@@ -301,6 +301,8 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         .reply-actions {display: flex; justify-content: flex-end; gap: 10px;}
         .reply-cancel {background: none; border: none; color: var(--text-muted); cursor: pointer}
         .reply-submit {background: var(--accent); border: none; color: white; padding: 8px 18px; border-radius: 10px; cursor:pointer}
+        .back-btn {position: absolute; left: -30px; top: 18px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; text-decoration: none; color: var(--text-main); font-size: 28px; transition: .2s;}
+        .back-btn:hover {background: rgba(255, 255, 255, .08); color: var(--accent);}
 
     </style>
 </head>
@@ -338,6 +340,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
     
      <div class="page-wrapper">
         <div class="post-container">
+            <a href="subcommunity.php?id=<?php echo $post['sub_id']; ?>" class="back-btn">&larr;</a>
             <!-- Post Card -->
             <div class="card post-card">
                 <!-- Post Header -->
@@ -358,6 +361,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                         </div>
                     </div>
                 </div>
+
 
              <!-- Post Title & Content -->
               <div class="post-title"><?php echo htmlspecialchars($post['title']); ?></div>
