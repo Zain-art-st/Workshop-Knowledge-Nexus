@@ -7,23 +7,23 @@ if (!isset($conn) || !$conn) {
     die("❌ Database connection failed. Check db.php");
 }
 
-// Get subcommunity slug from URL
-$slug = isset($_GET['slug']) ? trim($_GET['slug']) : 'computerscience';
+// Get subcommunity id from URL
+$sub_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
-// Validate slug
-if (empty($slug)) {
-    die("❌ No subcommunity slug provided.");
+// Validate id
+if ($sub_id <= 0) {
+    die("❌ Invalid subcommunity ID.");
 }
 
 // Fetch subcommunity details
-$sub_query = "SELECT * FROM subcommunities WHERE slug = ?";
+$sub_query = "SELECT * FROM subcommunities WHERE id = ?";
 $sub_stmt = mysqli_prepare($conn, $sub_query);
 
 if (!$sub_stmt) {
     die("❌ Query prepare failed: " . mysqli_error($conn));
 }
 
-mysqli_stmt_bind_param($sub_stmt, "s", $slug);
+mysqli_stmt_bind_param($sub_stmt, "i", $sub_id);
 $execute_result = mysqli_stmt_execute($sub_stmt);
 
 if (!$execute_result) {
@@ -39,10 +39,9 @@ if (!$sub_result) {
 $subcommunity = mysqli_fetch_assoc($sub_result);
 
 if (!$subcommunity) {
-    die("❌ Subcommunity with slug '" . htmlspecialchars($slug) . "' not found. Available slugs: computerscience, machinelearning, ranting, cats, whatisthis, programming-y1");
+    die("❌ Subcommunity not found.");
 }
 
-$sub_id = $subcommunity['id'];
 $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 
 // Update recent visit (if user is logged in)
@@ -55,7 +54,7 @@ if ($user_id) {
 }
 
 // Fetch posts with vote counts and author info
-$posts_query = "SELECT p.id, p.title, p.content, p.image_url, p.link_url, p.upvotes, p.downvotes, 
+$posts_query = "SELECT p.id, p.user_id, p.title, p.content, p.image_url, p.link_url, p.upvotes, p.downvotes, 
                        p.created_at, u.username, u.profile_photo,
                        (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count
                 FROM posts p
@@ -359,6 +358,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                              <button class="action-btn" onclick="toggleMenu(this)" style="font-size: 20px">&#8942;</button>
                                              <div class="dropdown-menu">
                                                 <a href="#" onclick="openReportModal(<?php echo $post['id']; ?>); return false;">Report</a>
+                                                
+                                                <?php $canDelete = isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $post['user_id'] || ($_SESSION['role'] ?? '') === 'admin'); ?>
+                                                <?php if($canDelete): ?>
+                                                    <a href="#" onclick="deletePost(<?php echo $post['id']; ?>); return false;" style="color:#ff6b6b;">Delete</a>
+                                                <?php endif; ?>
                                              </div>
                                         </div>
                                     </div>
@@ -374,7 +378,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             <aside class="left-sidebar">
                 <div class="card" style="overflow: hidden;">
                     <div style="padding: 16px;">
-                        <h3 style="font-family: var(--font-display); font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.8px; margin-bottom: 12px;">About r/<?php echo htmlspecialchars($subcommunity['slug']); ?></h3>
+                        <h3 style="font-family: var(--font-display); font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.8px; margin-bottom: 12px;">About <?php echo htmlspecialchars($subcommunity['name']); ?></h3>
                         
                         <div style="font-size: 13px; line-height: 1.6; color: var(--text-muted); margin-bottom: 16px;">
                             <p><?php echo htmlspecialchars($subcommunity['description']); ?></p>
@@ -579,6 +583,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 else
                 {
                     alert("Failed to submit report");
+                }
+            })
+            .catch(error => {
+                console.error(error);
+            });
+        }
+
+        function deletePost(postId)
+        {
+            if(!confirm("Delete this post?"))
+            {
+                return;
+            }
+
+            fetch("delete_post.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body:
+                    "post_id=" + encodeURIComponent(postId)
+            })
+            .then(response=>response.text())
+            .then(data => {
+                
+                if(data.trim() === "success")
+                {
+                    alert("Post deleted");
+
+                    location.reload();
+                }
+                else
+                {
+                    alert(data);
                 }
             })
             .catch(error => {

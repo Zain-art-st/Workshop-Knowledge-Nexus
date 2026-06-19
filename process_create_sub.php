@@ -26,31 +26,14 @@ if (empty($topic) || empty($name) || empty($description)) {
     exit();
 }
 
-// 4. Fungsi Automatik untuk Menjana Slug Unik (Sesuai dengan struktur tabel subcommunities)
-function generateSlug($string)
-{
-    // Tukar huruf besar ke huruf kecil
-    $slug = strtolower($string);
-    // Gantikan simbol & atau karakter bukan alfa-numerik kepada sempang (-)
-    $slug = preg_replace('/[^a-z0-9\s-]/', '', $slug);
-    $slug = preg_replace('/[\s-]+/', '-', $slug);
-    return trim($slug, '-');
-}
-
-$slug = generateSlug($name);
-
-if (empty($slug)) {
-    $slug = 'sub-' . rand(1000, 9999);
-}
-
 // 5. Semakan Duplikasi: Pastikan 'name' dan 'slug' belum wujud di database (Sebab UNIQUE KEY di setup.sql)
-$check_stmt = $conn->prepare("SELECT id FROM subcommunities WHERE name = ? OR slug = ? LIMIT 1");
-$check_stmt->bind_param("ss", $name, $slug);
+$check_stmt = $conn->prepare("SELECT id FROM subcommunities WHERE name = ? LIMIT 1");
+$check_stmt->bind_param("s", $name);
 $check_stmt->execute();
 $check_stmt->store_result();
 
 if ($check_stmt->num_rows > 0) {
-    echo json_encode(['status' => 'error', 'message' => 'Nama atau pautan komuniti ini sudah pun digunakan. Sila pilih nama lain!']);
+    echo json_encode(['status' => 'error', 'message' => 'Nama komuniti ini sudah pun digunakan. Sila pilih nama lain!']);
     $check_stmt->close();
     $conn->close();
     exit();
@@ -59,19 +42,19 @@ $check_stmt->close();
 
 // 6. Melaksanakan Kemasukan Data (INSERT INTO) ke Tabel `subcommunities`
 // Kolom sepadan: name, slug, description, topic, creator_id, member_count
-$insert_query = "INSERT INTO subcommunities (name, slug, description, topic, creator_id, member_count) VALUES (?, ?, ?, ?, ?, 1)";
+$insert_query = "INSERT INTO subcommunities (name, description, topic, creator_id, member_count) VALUES (?, ?, ?, ?, 1)";
 $stmt = $conn->prepare($insert_query);
 
 if ($stmt) {
     // Sesiapa yang mencipta automatik dikira mempunyai member_count = 1
-    $stmt->bind_param("ssssi", $name, $slug, $description, $topic, $creator_id);
+    $stmt->bind_param("sssi", $name, $description, $topic, $creator_id);
 
     if ($stmt->execute()) {
         // Jika berjaya, pulangkan respon kejayaan bersama nilai slug baharu
         echo json_encode([
             'status' => 'success',
             'message' => 'Sub-komuniti berjaya dicipta!',
-            'slug' => $slug
+            'id' => $conn->insert_id
         ]);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Gagal memasukkan data ke pangkalan data: ' . $stmt->error]);

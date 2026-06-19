@@ -198,7 +198,7 @@ session_start();
                     if (data.status === 'success') {
                         showAlert(data.message, 'success');
                         setTimeout(() => {
-                            window.location.href = 'sub_page.php?slug=' + data.slug;
+                            window.location.href = 'subcommunity.php?id=' + data.id;
                         }, 2000);
                     } else {
                         showAlert(data.message, 'error');

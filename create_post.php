@@ -102,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_post'])) {
                 $post_id = mysqli_insert_id($conn);
                 $success = true;
                 $_SESSION['success_msg'] = "✅ Post created successfully!";
-                header("Location: subcommunity.php?slug=" . urlencode($subcommunity['slug']));
+                header("Location: subcommunity.php?id=" . urlencode($subcommunity['id']));
                 exit();
             } else {
                 $error = "❌ Failed to create post. Please try again.";
@@ -157,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_post'])) {
             <div class="card" style="margin-bottom: 20px;">
                 <div style="padding: 20px; border-bottom: 1px solid var(--card-border);">
                     <h1 style="font-family: var(--font-display); font-size: 24px; font-weight: 700; margin-bottom: 8px;">
-                        Create a post in r/<?php echo htmlspecialchars($subcommunity['slug']); ?>
+                        Create a post in <?php echo htmlspecialchars($subcommunity['name']); ?>
                     </h1>
                     <p style="color: var(--text-muted); font-size: 14px;">
                         <?php echo htmlspecialchars($subcommunity['name']); ?>
@@ -231,7 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_post'])) {
                             <button type="submit" name="create_post" class="btn btn-primary" style="flex: 1;">
                                 Post
                             </button>
-                            <a href="subcommunity.php?slug=<?php echo urlencode($subcommunity['slug']); ?>" 
+                            <a href="subcommunity.php?id=<?php echo urlencode($subcommunity['id']); ?>" 
                                class="btn btn-secondary" style="flex: 1; text-decoration: none; text-align: center;">
                                 Cancel
                             </a>
