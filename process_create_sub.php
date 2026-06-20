@@ -26,7 +26,7 @@ if (empty($topic) || empty($name) || empty($description)) {
     exit();
 }
 
-// 5. Semakan Duplikasi: Pastikan 'name' dan 'slug' belum wujud di database (Sebab UNIQUE KEY di setup.sql)
+// 5. Semakan Duplikasi: Pastikan 'name' belum wujud di database (Sebab UNIQUE KEY di setup.sql)
 $check_stmt = $conn->prepare("SELECT id FROM subcommunities WHERE name = ? LIMIT 1");
 $check_stmt->bind_param("s", $name);
 $check_stmt->execute();
@@ -41,16 +41,16 @@ if ($check_stmt->num_rows > 0) {
 $check_stmt->close();
 
 // 6. Melaksanakan Kemasukan Data (INSERT INTO) ke Tabel `subcommunities`
-// Kolom sepadan: name, slug, description, topic, creator_id, member_count
-$insert_query = "INSERT INTO subcommunities (name, description, topic, creator_id, member_count) VALUES (?, ?, ?, ?, 1)";
+// Kolom sepadan: name, description, topic, creator_id, member_count
+$insert_query = "INSERT INTO subcommunities (name, description, topic, creator_id, member_count) VALUES (?, ?, ?, ?, 0)";
 $stmt = $conn->prepare($insert_query);
 
 if ($stmt) {
-    // Sesiapa yang mencipta automatik dikira mempunyai member_count = 1
+    // Sesiapa yang mencipta automatik dikira mempunyai member_count = 0
     $stmt->bind_param("sssi", $name, $description, $topic, $creator_id);
 
     if ($stmt->execute()) {
-        // Jika berjaya, pulangkan respon kejayaan bersama nilai slug baharu
+        // Jika berjaya, pulangkan respon kejayaan bersama nilai id baharu
         echo json_encode([
             'status' => 'success',
             'message' => 'Sub-komuniti berjaya dicipta!',

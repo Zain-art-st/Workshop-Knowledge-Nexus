@@ -192,10 +192,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         .dropdown-menu {display: none;position: absolute; top: 100%; right: 0; min-width: 150px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,.2); z-index: 1000; background:#1e1e35; border:1px solid var(--card-border);}
         .dropdown-menu a {display: block; padding: 12px 16px; color:var(--text-main); text-decoration: none;}
         .dropdown-menu a:hover {background:rgba(255,255,255,.07); border-radius: 8px;}
-        .report-modal {display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 9999; justify-content: center; align-items: center;}
-        .report-content {width: 600px; max-width: 90%; background: #2d2d2d; border-radius: 30px; padding: 40px; color: white;}
-        .report-content h2 {text-align: center; margin-bottom: 10px;}
-        .report-content p {text-align: center; margin-bottom: 30px;}
+        .report-modal, .delete-modal, .deleteSuccess-modal {display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 9999; justify-content: center; align-items: center;}
+        .report-content, .delete-content, .deleteSuccess-content {width: 600px; max-width: 90%; background: #2d2d2d; border-radius: 30px; padding: 40px; color: white;}
+        .report-content h2, .delete-content h2, .deleteSuccess-content h2 {text-align: center; margin-bottom: 10px;}
+        .report-content p, .delete-content p, .deleteSuccess-content p {text-align: center; margin-bottom: 30px;}
         .report-option {display: flex; align-items:center; gap: 15px; margin-bottom: 20px; font-size: 18px; cursor: pointer;}
         .report-option input[type="radio"] {width: 25px; height: 25px;}
         .confirm-btn {width: 100%; padding: 15px; border: none; border-radius: 30px; margin-top: 20px; font-size: 18px; font-weight: bold; cursor: pointer;}
@@ -303,7 +303,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             </div>
                         <?php else: ?>
                             <?php foreach ($posts as $post): ?>
-                            <div class="post-preview">
+                            <div class="post-preview" data-post-id="<?php echo $post['id']; ?>">
                                 <div class="post-info">
                                     <div class="post-left">
                                         <div class="post-meta">
@@ -361,7 +361,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                                 
                                                 <?php $canDelete = isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $post['user_id'] || ($_SESSION['role'] ?? '') === 'admin'); ?>
                                                 <?php if($canDelete): ?>
-                                                    <a href="#" onclick="deletePost(<?php echo $post['id']; ?>); return false;" style="color:#ff6b6b;">Delete</a>
+                                                    <a href="#" onclick="openDeleteModal(<?php echo $post['id']; ?>); return false;">Delete</a>
                                                 <?php endif; ?>
                                              </div>
                                         </div>
@@ -459,6 +459,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         </div>
     </div>
 
+    <div id="deleteModal" class="delete-modal">
+        <div class="delete-content">
+            <span class="close-btn" onclick="closeDeleteModal()">
+                &times;
+            </span>
+
+            <h2 style="color:red;">Warning</h2>
+
+            <p>Are you sure you want to delete this post?</p>
+
+            <input type="hidden" id="deletePostId">
+
+            <div style="display: flex; gap: 15px; margin-top: 25px;">
+                <button class="confirm-btn" style="background:#555;" onclick="closeDeleteModal()">
+                    No
+                </button>
+
+                <button class="confirm-btn" style="background:#d9534f;" onclick="deletePost()">
+                    Yes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteSuccessModal" class="deleteSuccess-modal">
+        <div class="deleteSuccess-content">
+            <h2>Post Deleted</h2>
+            <p>Your post has been successfully deleted.</p>
+            <button class="confirm-btn" onclick="closeDeleteSuccessModal()">
+                OK
+            </button>
+        </div>
+    </div>
+
     <script>
         function vote(postId, voteType) {
             <?php if (!isset($_SESSION['user_id'])): ?>
@@ -538,10 +572,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         window.onclick = function(event)
         {
             const modal = document.getElementById("reportModal");
+            const successModal = document.getElementById("deleteSuccessModal");
 
             if(event.target === modal)
             {
                 closeReportModal();
+            }
+
+            if(event.target === SuccessModal)
+            {
+                closeDeleteSuccessModal();
             }
         }
 
@@ -590,12 +630,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             });
         }
 
-        function deletePost(postId)
+        function openDeleteModal(postId)
         {
-            if(!confirm("Delete this post?"))
-            {
-                return;
-            }
+            document.getElementById("deletePostId").value = postId;
+            document.getElementById("deleteModal").style.display = "flex";
+        }
+
+        function closeDeleteModal()
+        {
+            document.getElementById("deleteModal").style.display = "none";
+        }
+
+        function deletePost()
+        {
+            const postId = document.getElementById("deletePostId").value;
 
             fetch("delete_post.php", {
                 method: "POST",
@@ -610,9 +658,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 
                 if(data.trim() === "success")
                 {
-                    alert("Post deleted");
+                    closeDeleteModal();
 
-                    location.reload();
+                    const post = document.querySelector(`[data-post-id="${postId}"]`);
+
+                    if(post)
+                    {
+                        post.remove();
+                    }
+
+                    openDeleteSuccessModal();
                 }
                 else
                 {
@@ -622,6 +677,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             .catch(error => {
                 console.error(error);
             });
+        }
+
+        function openDeleteSuccessModal()
+        {
+            document.getElementById("deleteSuccessModal").style.display = "flex";
+        }
+
+        function closeDeleteSuccessModal()
+        {
+            document.getElementById("deleteSuccessModal").style.display = "none";
         }
 
         // Unique key based on the page URL path to handle multiple pages
