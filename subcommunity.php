@@ -56,7 +56,7 @@ if ($user_id) {
 // Fetch posts with vote counts and author info
 $posts_query = "SELECT p.id, p.user_id, p.title, p.content, p.image_url, p.link_url, p.upvotes, p.downvotes, 
                        p.created_at, u.username, u.profile_photo,
-                       (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count
+                       (SELECT COUNT(*) FROM comments WHERE post_id = p.id AND is_removed = 0) as comment_count
                 FROM posts p
                 JOIN users u ON p.user_id = u.id
                 WHERE p.sub_id = ? AND p.is_removed = 0

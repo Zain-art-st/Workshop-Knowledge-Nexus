@@ -18,7 +18,7 @@ if(!$post)
     }
 
 // Fetch comments with author info
-$comment_query = "SELECT c.*, u.username, u.profile_photo FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id = ? ORDER BY c.created_at ASC";
+$comment_query = "SELECT c.*, u.username, u.profile_photo FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id = ? AND c.is_removed = 0 ORDER BY c.created_at ASC";
 $comment_stmt = mysqli_prepare($conn, $comment_query);
 mysqli_stmt_bind_param($comment_stmt, "i", $post_id);
 mysqli_stmt_execute($comment_stmt);
@@ -303,6 +303,18 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         .reply-submit {background: var(--accent); border: none; color: white; padding: 8px 18px; border-radius: 10px; cursor:pointer}
         .back-btn {position: absolute; left: -30px; top: 18px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; text-decoration: none; color: var(--text-main); font-size: 28px; transition: .2s;}
         .back-btn:hover {background: rgba(255, 255, 255, .08); color: var(--accent);}
+        .comment-menu {position: relative;}
+        .comment-menu-btn {background: none; border: none; color: white; cursor: pointer; font-size: 18px; padding: 6px;}
+        .comment-dropdown {display: none; position: absolute; top: 110%; right: 0; min-width: 140px; background: #1e1e35; border: 1px solid rgba(255, 255, 255, .15); border-radius: 10px; overflow: hidden; z-index: 100;}
+        .comment-dropdown a {display: block; padding: 10px 14px; color: white; text-decoration: none;}
+        .comment-dropdown a:hover {background: rgba(255, 255, 255, .08);}
+
+        .report-modal {display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 9999; justify-content: center; align-items: center;}
+        .report-content {width: 600px; max-width: 90%; background: #2d2d2d; border-radius: 30px; padding: 40px; color: white;}
+        .report-content h2 {text-align: center; margin-bottom: 10px;}
+        .report-content p {text-align: center; margin-bottom: 30px;}
+        .confirm-btn {width: 100%; padding: 15px; border: none; border-radius: 30px; margin-top: 20px; font-size: 18px; font-weight: bold; cursor: pointer;}
+        .close-btn {float: right; font-size: 28px; cursor: pointer;}
 
     </style>
 </head>
@@ -424,7 +436,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                     }
                     ?>
                     <?php foreach($parent_comments as $comment): ?>
-                        <div class="comment-item">
+                        <div class="comment-item" data-comment-id="<?php echo $comment['id']; ?>">
                             <div class="comment-avatar">
                                 <?php echo strtoupper(substr($comment['username'], 0, 1)); ?>
                             </div>
@@ -463,6 +475,19 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                                     <?php echo $comment['id']; ?>,
                                     '<?php echo htmlspecialchars($comment['username']); ?>'
                                     )">Reply</button>
+
+                                    <div class="comment-menu">
+                                        <button type="button" class="comment-menu-btn" onclick="toggleCommentMenu(this)">
+                                            &#8943;
+                                        </button>
+
+                                        <div class="comment-dropdown">
+                                            <a href="#" onclick="openCommentReportModal(<?php echo $comment['id']; ?>); return false;">Report</a>
+                                            <?php if(isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $comment['user_id'] || (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'))): ?>
+                                                <a href="#" onclick="openDeleteCommentModal(<?php echo $comment['id']; ?>); return false;">Delete</a>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div id="reply-container-<?php echo $comment['id']; ?>"></div>
@@ -472,7 +497,8 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                                 if(isset($child_comments[$comment['id']])) : ?>
                                     <div class="child-comments">
                                     <?php foreach($child_comments[$comment['id']] as $child): ?>
-                                        <div class="comment-item">
+                                        <div class="comment-item" data-comment-id="<?php echo $child['id']; ?>"
+                                        data-parent-id="<?php echo $child['parent_id']; ?>">
                                             <div class="comment-avatar">
                                                 <?php
                                                 echo strtoupper(substr($child['username'], 0, 1));
@@ -517,6 +543,24 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                                                     <?php echo $child['id']; ?>,
                                                     '<?php echo htmlspecialchars($child['username']); ?>'
                                                     )">Reply</button>
+
+                                                    <div class="comment-menu">
+                                                        <button type="button" class="comment-menu-btn" onclick="toggleCommentMenu(this)">
+                                                            &#8943
+                                                        </button>
+
+                                                        <div class="comment-dropdown">
+                                                            <a href="#" onclick="openCommentReportModal(<?php echo $child['id']; ?>); return false;">
+                                                                Report
+                                                            </a>
+
+                                                            <?php if(isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $child['user_id'] || (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'))): ?>
+                                                                <a href="#" onclick="openDeleteCommentModal(<?php echo $child['id']; ?>); return false;">
+                                                                    Delete
+                                                                </a>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    </div>
                                                 </div>
 
                                                 <div id="reply-container-<?php echo $child['id']; ?>"></div>
@@ -544,6 +588,22 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                 </div>
             <?php endif; ?>
          </div>
+        </div>
+    </div>
+
+    <div id="deleteCommentModal" class="report-modal">
+        <div class="report-content">
+            <h2>Delete Comment</h2>
+            <p>Are you sure you want to delete this comment?</p>
+            <input type="hidden" id="deleteCommentId">
+            <div style="display: flex; gap: 15px; margin-top: 25px;">
+                <button class="confirm-btn" onclick="deleteComment()">
+                    Delete
+                </button>
+                <button class="confirm-btn" onclick="closeDeleteCommentModal()">
+                    Cancel
+                </button>
+            </div>
         </div>
     </div>
 
@@ -645,6 +705,71 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             `;
 
             container.querySelector('.reply-cancel').onclick = function() {container.innerHTML = '';};
+        }
+
+        function toggleCommentMenu(button)
+        {
+            const menu = button.nextElementSibling;
+
+            document.querySelectorAll(".comment-dropdown").forEach(m => {
+                if(m !== menu)
+                {
+                    m.style.display = "none";
+                }
+            });
+
+            menu.style.display = menu.style.display === "block" ? "none" : "block";
+        }
+
+        function openDeleteCommentModal(commentId)
+        {
+            document.getElementById("deleteCommentId").value = commentId;
+            document.getElementById("deleteCommentModal").style.display = "flex";
+        }
+
+        function closeDeleteCommentModal()
+        {
+            document.getElementById("deleteCommentModal").style.display = "none";
+        }
+
+        function deleteComment()
+        {
+            const id = document.getElementById("deleteCommentId").value;
+
+            fetch("delete_comment.php", 
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body:
+                "comment_id=" + encodeURIComponent(id)
+            })
+            .then(response => response.json())
+            .then(data=>{
+                if(data.success)
+                {
+                    closeDeleteCommentModal();
+                    document.querySelector(`[data-comment-id="${id}"]`)?.remove();
+
+                    //document.querySelectorAll(`[data-parent-id="${id}"]`).forEach(c => c.remove());
+
+                    // Update comment counter
+                    const commentBtn = document.querySelector(".action-btn");
+
+                    if(commentBtn)
+                    {
+                        commentBtn.innerHTML = `💬 ${data.comment_count} Comments`;
+                    }
+                }
+                else
+                {
+                    alert(data);
+                }
+            })
+            .catch(error=>{
+                console.error(error);
+            });
         }
     </script>
 </body>
