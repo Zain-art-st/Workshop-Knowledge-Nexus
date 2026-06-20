@@ -224,20 +224,24 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 
         .comment-actions {
             display: flex;
+            align-items: center;
             gap: 8px;
         }
 
-        .comment-vote-btn {
-            background: none;
+
+        .comment-reply-btn {
+            background: rgba(255, 255, 255, .06);
             border: none;
-            cursor: pointer;
+            border-radius: 20px;
             color: var(--text-muted);
-            font-size: 11px;
-            padding: 0;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 4px 10px;
             transition: color 0.2s;
+            height: 36px;
         }
 
-        .comment-vote-btn:hover {
+        .comment-reply-btn:hover {
             color: var(--accent);
         }
 
@@ -303,7 +307,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         .reply-submit {background: var(--accent); border: none; color: white; padding: 8px 18px; border-radius: 10px; cursor:pointer}
         .back-btn {position: absolute; left: -30px; top: 18px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; text-decoration: none; color: var(--text-main); font-size: 28px; transition: .2s;}
         .back-btn:hover {background: rgba(255, 255, 255, .08); color: var(--accent);}
-        .comment-menu {position: relative;}
+        .comment-menu {position: relative; background: rgba(255, 255, 255, .06); border: none; border-radius: 20px; color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 0; transition: color 0.2s;}
         .comment-menu-btn {background: none; border: none; color: white; cursor: pointer; font-size: 18px; padding: 6px;}
         .comment-dropdown {display: none; position: absolute; top: 110%; right: 0; min-width: 140px; background: #1e1e35; border: 1px solid rgba(255, 255, 255, .15); border-radius: 10px; overflow: hidden; z-index: 100;}
         .comment-dropdown a {display: block; padding: 10px 14px; color: white; text-decoration: none;}
@@ -316,6 +320,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         .confirm-btn {width: 100%; padding: 15px; border: none; border-radius: 30px; margin-top: 20px; font-size: 18px; font-weight: bold; cursor: pointer;}
         .close-btn {float: right; font-size: 28px; cursor: pointer;}
 
+        
     </style>
 </head>
 <body>
@@ -458,38 +463,37 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                                 <div class="comment-content">
                                     <?php echo nl2br(htmlspecialchars($comment['content'])); ?>
                                 </div>
-                                <div class="vote-group">
-                                    <button type="button" class="vote-btn upvote" onclick="voteComment(<?php echo $comment['id']; ?>, 'upvote')">▲</button>
-                                    <span class="vote-count" id="comment-upvotes-<?php echo $comment['id']; ?>">
-                                        <?php echo $comment['upvotes']; ?>
-                                    </span>
+                                <div class="comment-actions">
+                                    <div class="vote-group">
+                                        <button type="button" class="vote-btn upvote" onclick="voteComment(<?php echo $comment['id']; ?>, 'upvote')">▲</button>
+                                        <span class="vote-count" id="comment-upvotes-<?php echo $comment['id']; ?>">
+                                            <?php echo $comment['upvotes']; ?>
+                                        </span>
 
-                                    <span style="width:1px; height: 20px; background: rgba(255,255,255,.25)"></span>
+                                        <span style="width:1px; height: 20px; background: rgba(255,255,255,.25)"></span>
 
-                                    <span class="vote-count" id="comment-downvotes-<?php echo $comment['id']; ?>">
-                                        <?php echo $comment['downvotes']; ?>
-                                    </span>
-                                    <button type="button" class="vote-btn downvote" onclick="voteComment(<?php echo $comment['id']; ?>, 'downvote')">▼</button>
+                                        <span class="vote-count" id="comment-downvotes-<?php echo $comment['id']; ?>">
+                                            <?php echo $comment['downvotes']; ?>
+                                        </span>
+                                        <button type="button" class="vote-btn downvote" onclick="voteComment(<?php echo $comment['id']; ?>, 'downvote')">▼</button>
+                                    </div>
 
-                                    <button type="button" class="comment-vote-btn" onclick="showReplyBox(
-                                    <?php echo $comment['id']; ?>,
-                                    '<?php echo htmlspecialchars($comment['username']); ?>'
-                                    )">Reply</button>
+                                    <button type="button" class="comment-reply-btn" onclick="showReplyBox(<?php echo $comment['id']; ?>, 
+                                    '<?php echo htmlspecialchars($comment['username']); ?>')">Reply</button>
 
                                     <div class="comment-menu">
                                         <button type="button" class="comment-menu-btn" onclick="toggleCommentMenu(this)">
                                             &#8943;
                                         </button>
-
+                                    
                                         <div class="comment-dropdown">
                                             <a href="#" onclick="openCommentReportModal(<?php echo $comment['id']; ?>); return false;">Report</a>
-                                            <?php if(isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $comment['user_id'] || (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'))): ?>
+                                            <?php if (isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $comment['user_id'] || (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'))): ?>
                                                 <a href="#" onclick="openDeleteCommentModal(<?php echo $comment['id']; ?>); return false;">Delete</a>
                                             <?php endif; ?>
                                         </div>
                                     </div>
                                 </div>
-
                                 <div id="reply-container-<?php echo $comment['id']; ?>"></div>
 
                                 <!-- Child comments -->
@@ -526,43 +530,43 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                                                     <?php echo nl2br(htmlspecialchars($child['content'])); ?>
                                                 </div>
 
-                                                <div class="vote-group">
-                                                    <button type="button" class="vote-btn upvote" onclick="voteComment(<?php echo $child['id']; ?>, 'upvote')">▲</button>
-                                                    <span class="vote-count" id="comment-upvotes-<?php echo $child['id']; ?>">
-                                                        <?php echo $child['upvotes']; ?>
-                                                    </span>
+                                                <div class="comment-actions">
+                                                    <div class="vote-group">
+                                                        <button type="button" class="vote-btn upvote" onclick="voteComment(<?php echo $child['id']; ?>, 'upvote')">▲</button>
+                                                        <span class="vote-count" id="comment-upvotes-<?php echo $child['id']; ?>">
+                                                            <?php echo $child['upvotes']; ?>
+                                                        </span>
 
-                                                    <span style="width:1px; height: 20px; background: rgba(255,255,255,.25)"></span>
+                                                        <span style="width:1px; height: 20px; background: rgba(255,255,255,.25)"></span>
 
-                                                    <span class="vote-count" id="comment-downvotes-<?php echo $child['id']; ?>">
-                                                        <?php echo $child['downvotes']; ?>
-                                                    </span>
-                                                    <button type="button" class="vote-btn downvote" onclick="voteComment(<?php echo $child['id']; ?>, 'downvote')">▼</button>
-
-                                                    <button type="button" class="comment-vote-btn" onclick="showReplyBox(
-                                                    <?php echo $child['id']; ?>,
-                                                    '<?php echo htmlspecialchars($child['username']); ?>'
-                                                    )">Reply</button>
-
-                                                    <div class="comment-menu">
-                                                        <button type="button" class="comment-menu-btn" onclick="toggleCommentMenu(this)">
-                                                            &#8943
-                                                        </button>
-
-                                                        <div class="comment-dropdown">
-                                                            <a href="#" onclick="openCommentReportModal(<?php echo $child['id']; ?>); return false;">
-                                                                Report
-                                                            </a>
-
-                                                            <?php if(isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $child['user_id'] || (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'))): ?>
-                                                                <a href="#" onclick="openDeleteCommentModal(<?php echo $child['id']; ?>); return false;">
-                                                                    Delete
-                                                                </a>
-                                                            <?php endif; ?>
-                                                        </div>
+                                                        <span class="vote-count" id="comment-downvotes-<?php echo $child['id']; ?>">
+                                                            <?php echo $child['downvotes']; ?>
+                                                        </span>
+                                                        <button type="button" class="vote-btn downvote" onclick="voteComment(<?php echo $child['id']; ?>, 'downvote')">▼</button>   
                                                     </div>
-                                                </div>
+                                                    <button type="button" class="comment-reply-btn" onclick="showReplyBox(
+                                                        <?php echo $child['id']; ?>,
+                                                        '<?php echo htmlspecialchars($child['username']); ?>'
+                                                        )">Reply</button>
 
+                                                        <div class="comment-menu">
+                                                            <button type="button" class="comment-menu-btn" onclick="toggleCommentMenu(this)">
+                                                                &#8943
+                                                            </button>
+
+                                                            <div class="comment-dropdown">
+                                                                <a href="#" onclick="openCommentReportModal(<?php echo $child['id']; ?>); return false;">
+                                                                    Report
+                                                                </a>
+
+                                                                <?php if(isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $child['user_id'] || (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'))): ?>
+                                                                    <a href="#" onclick="openDeleteCommentModal(<?php echo $child['id']; ?>); return false;">
+                                                                        Delete
+                                                                    </a>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                        </div>
+                                                </div>
                                                 <div id="reply-container-<?php echo $child['id']; ?>"></div>
                                             </div>
                                         </div>
@@ -751,8 +755,6 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                 {
                     closeDeleteCommentModal();
                     document.querySelector(`[data-comment-id="${id}"]`)?.remove();
-
-                    //document.querySelectorAll(`[data-parent-id="${id}"]`).forEach(c => c.remove());
 
                     // Update comment counter
                     const commentBtn = document.querySelector(".action-btn");
