@@ -311,7 +311,6 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         .post-link:hover {color: #6fa8ff; text-decoration: underline;}
         .post-link:visited {color: #b78cff;}
         .child-comments {margin-top: 12px;}
-        .child-comment {margin-left: 55px; padding-left: 14px; border-left: 2px solid rgba(255, 255, 255, .08); border-bottom: none;}
         .reply-box {margin-top: 12px; display: flex; flex-direction: column; gap: 10px;}
         .reply-box textarea {width: 100%; min-height: 80px; padding: 12px; border-radius: 12px; background: rgba(255, 255, 255, .05); border: 1px solid var(--card-border); color: white; resize: none}
         .reply-actions {display: flex; justify-content: flex-end; gap: 10px;}
@@ -319,16 +318,13 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         .reply-submit {background: var(--accent); border: none; color: white; padding: 8px 18px; border-radius: 10px; cursor:pointer}
         .back-btn {position: absolute; left: -30px; top: 18px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; text-decoration: none; color: var(--text-main); font-size: 28px; transition: .2s;}
         .back-btn:hover {background: rgba(255, 255, 255, .08); color: var(--accent);}
-        .comment-menu, .post-menu {position: relative; background: rgba(255, 255, 255, .06); border: none; border-radius: 20px; color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 0; transition: color 0.2s;}
+        .comment-menu {position: relative; background: rgba(255, 255, 255, .06); border: none; border-radius: 20px; color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 0; transition: color 0.2s;}
+        .post-menu {position: relative; background: none; border: none; border-radius: 20px; color: var(--text-muted); font-size: 12px; padding: 0; transition: color 0.2s;}
         .comment-menu-btn {background: none; border: none; color: white; cursor: pointer; font-size: 18px; padding: 6px;}
         .comment-dropdown, .post-dropdown {display: none; position: absolute; top: 110%; right: 0; min-width: 140px; background: #1e1e35; border: 1px solid rgba(255, 255, 255, .15); border-radius: 10px; overflow: hidden; z-index: 100;}
         .comment-dropdown a, .post-dropdown a {display: block; padding: 10px 14px; color: white; text-decoration: none;}
         .comment-dropdown a:hover, .post-dropdown a:hover {background: rgba(255, 255, 255, .08);}
 
-        .report-modal {display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 9999; justify-content: center; align-items: center;}
-        .report-content {width: 600px; max-width: 90%; background: #2d2d2d; border-radius: 30px; padding: 40px; color: white;}
-        .report-content h2 {text-align: center; margin-bottom: 10px;}
-        .report-content p {text-align: center; margin-bottom: 30px;}
         .confirm-btn {width: 100%; padding: 15px; border: none; border-radius: 30px; margin-top: 20px; font-size: 18px; font-weight: bold; cursor: pointer;}
         .close-btn {float: right; font-size: 28px; cursor: pointer;}
 
@@ -337,7 +333,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             position: fixed;
             left: 50%;
             bottom: 30px;
-            transform translateX(-50%);
+            transform: translateX(-50%);
             min-width: 280px;
             max-width: 500px;
             background: #2d2d2d;
@@ -441,13 +437,62 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             flex-shrink: 0;
         }
 
-        .report-modal, .delete-modal, .deleteSuccess-modal {display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 9999; justify-content: center; align-items: center;}
-        .report-content, .delete-content, .deleteSuccess-content {width: 600px; max-width: 90%; background: #2d2d2d; border-radius: 30px; padding: 40px; color: white;}
-        .report-content h2, .delete-content h2, .deleteSuccess-content h2 {text-align: center; margin-bottom: 10px;}
-        .report-content p, .delete-content p, .deleteSuccess-content p {text-align: center; margin-bottom: 30px;}
+        .report-modal, .delete-modal {display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 9999; justify-content: center; align-items: center;}
+        .report-content, .delete-content {width: 600px; max-width: 90%; background: #2d2d2d; border-radius: 30px; padding: 40px; color: white;}
+        .report-content h2, .delete-content h2 {text-align: center; margin-bottom: 10px;}
+        .report-content p, .delete-content p {text-align: center; margin-bottom: 30px;}
         .report-option {display: flex; align-items:center; gap: 15px; margin-bottom: 20px; font-size: 18px; cursor: pointer;}
         .report-option input[type="radio"] {width: 25px; height: 25px;}
         
+        .preview-wrapper{
+            position:relative;
+            display:inline-block;
+        }
+
+        .post-preview{
+            width:350px;
+            max-width:100%;
+            border-radius:12px;
+            display:block;
+        }
+
+        .remove-image-btn{
+            position:absolute;
+
+            top:10px;
+            right:10px;
+
+            width:36px;
+            height:36px;
+
+            border:none;
+
+            border-radius:50%;
+
+            background:rgba(0,0,0,.5);
+
+            color:white;
+
+            font-size:20px;
+
+            cursor:pointer;
+        }
+
+        .remove-image-btn:hover{
+            background:#ff5050;
+        }
+
+        .upload-area{
+            border:2px dashed #555;
+
+            border-radius:12px;
+
+            padding:60px;
+
+            text-align:center;
+
+            cursor:pointer;
+}
     </style>
 </head>
 <body>
@@ -549,7 +594,8 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                             <?php if(isset($_SESSION['user_id']) && $_SESSION['user_id'] == $post['user_id']) : ?>
                                 <a href="#" onclick="closePostMenus(); startEditPost(<?php echo $post['id']; ?>,
                                 `<?php echo htmlspecialchars($post['title'], ENT_QUOTES); ?>`,
-                                `<?php echo htmlspecialchars($post['content'], ENT_QUOTES); ?>`
+                                `<?php echo htmlspecialchars($post['content'], ENT_QUOTES); ?>`,
+                                `<?php echo htmlspecialchars($post['link_url'], ENT_QUOTES); ?>`,
                                 ); return false;">
                                 Edit
                                 </a>
@@ -918,7 +964,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                 }
                 else
                 {
-                    alert(data.message);
+                    showSnackbar(data.message);
                 }
             })
             .catch(error => console.error(error));
@@ -955,7 +1001,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             }
             else
             {
-                alert(data.message);
+                showSnackbar(data.message);
             }
             })
             .catch(error => {
@@ -1018,18 +1064,13 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 
         document.addEventListener("click", function(event)
         {
-            const insideMenu = event.target.closest(".comment-menu");
-
-            if(!insideMenu)
+            if(!event.target.closest(".comment-menu"))
             {
                 document.querySelectorAll(".comment-dropdown").forEach(menu => {
                     menu.style.display = "none";
                 });
             }
-        });
 
-        document.addEventListener("click", function(event)
-        {
             if(!event.target.closest(".post-menu"))
             {
                 document.querySelectorAll(".post-dropdown").forEach(menu => {
@@ -1142,7 +1183,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             snackbar.classList.add("show");
             setTimeout(() => {
                 snackbar.classList.remove("show");
-            }, 6000);
+            }, 4000);
         }
 
         function startEditComment(commentId, currentContent)
@@ -1201,11 +1242,52 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             });
         }
 
-        function startEditPost(postId, oldTitle, oldContent)
+        let postRemoveImageFlag = 0;
+
+        function attachImageInputListener() {
+            const input = document.getElementById("imageInput");
+            if (!input) return;
+        
+            input.addEventListener("change", function () {
+                if (!this.files[0]) return;
+        
+                postRemoveImageFlag = 0; // picking a new file cancels any pending removal
+        
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const container = document.querySelector(".post-image-container");
+        
+                    // Remove any existing upload-area / preview-wrapper, but DO NOT touch #imageInput
+                    const oldUploadArea = container.querySelector(".upload-area");
+                    if (oldUploadArea) oldUploadArea.remove();
+        
+                    const oldPreview = container.querySelector(".preview-wrapper");
+                    if (oldPreview) oldPreview.remove();
+        
+                    const wrapper = document.createElement("div");
+                    wrapper.className = "preview-wrapper";
+                    wrapper.innerHTML = `
+                        <img src="${e.target.result}" class="post-preview">
+                        <button type="button" class="remove-image-btn" onclick="removePostImage()">✕</button>
+                    `;
+        
+                    // Insert the preview BEFORE the (still-alive, still-holding-the-file) input
+                    container.insertBefore(wrapper, input);
+                };
+                reader.readAsDataURL(this.files[0]);
+            });
+        }
+
+        function startEditPost(postId, oldTitle, oldContent, oldLink)
         {
             const post = document.querySelector(".post-card");
             const title = post.querySelector(".post-title");
             const content = post.querySelector(".post-content");
+
+            const image = post.querySelector(".post-image");
+            const link = post.querySelector(".post-link");
+
+            const currentLink = link ? link.textContent : "";
 
             title.innerHTML = `
                 <input
@@ -1215,65 +1297,128 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                 >
             `;
 
-            content.innerHTML = `
+            content.innerHTML =
+                `
                 <div class="reply-box">
-                    <textarea
-                        id="edit-post-content"
-                        class="edit-post-content"
-                    >${oldContent}</textarea>
+                    <textarea id="edit-post-content" class="edit-post-content">${oldContent}</textarea>
 
-                    <div class="edit-actions">
-                        <button onclick="cancelEditPost(\`${oldTitle}\`, \`${oldContent}\`)">
-                            Cancel
-                        </button>
+                    <input id="edit-post-link" class="edit-post-title"
+                        placeholder="Enter link" value="${currentLink}">
 
-                        <button
-                            onclick="savePostEdit(${postId})">
-                            Save
-                        </button>
-                    </div>
+                    <div class="post-image-container">
+
+            <?php if (!empty($post['image_url'])): ?>
+
+                <div class="preview-wrapper">
+                    <img src="<?php echo htmlspecialchars($post['image_url']); ?>"
+                        class="post-preview" id="postPreview">
+
+                    <button type="button" class="remove-image-btn"
+                        onclick="removePostImage()">✕</button>
                 </div>
-            `;
+
+            <?php else: ?>
+                <div
+                    class="upload-area" id="uploadArea"
+                    onclick="document.getElementById('imageInput').click()">
+
+                    <div style="font-size:32px;">🖼️</div>
+
+                    <p>Click to upload or drag and drop</p>
+
+                    <p style="font-size:12px;">
+                        JPG, PNG, GIF, WebP (Max 5MB)
+                    </p>
+                </div>
+
+            <?php endif; ?>
+
+            <input type="file" id="imageInput" name="image_url" style="display:none"
+                accept="image/*">
+
+            </div>
+
+
+            <div class="edit-actions">
+                <button onclick="cancelEditPost(\`${oldTitle}\`, \`${oldContent}\`)">
+                    Cancel
+                </button>
+
+                <button onclick=" savePostEdit(${postId})">
+                    Save
+                </button>
+            </div>
+        </div>
+        `;
+        /* Hide original image & link */
+        if(image)
+        {
+            image.style.display =
+            "none";
+        }
+
+        if(link)
+        {
+            link.style.display =
+            "none";
+        }
+
+        postRemoveImageFlag = 0; // tracks whether the user wants to remove the current image
+        attachImageInputListener();
+                    
         }
 
         function cancelEditPost(originalTitle, originalContent)
         {
-            document.querySelector(".post-title").innerHTML = originalTitle;
-            document.querySelector(".post-content").innerHTML = originalContent.replace(/\n/g, "<br>");
+            location.reload();
         }
         
         function savePostEdit(postId)
         {
-            const title = document.getElementById("edit-post-title").value;
-            const content = document.getElementById("edit-post-content").value;
+            const formData = new FormData();
+
+            formData.append("post_id", postId);
+
+            formData.append("title", document.getElementById("edit-post-title").value);
+
+            formData.append("content", document.getElementById("edit-post-content").value);
+
+            formData.append("link_url", document.getElementById("edit-post-link").value);
+
+            const imageInput = document.getElementById("imageInput");
+
+            if(imageInput && imageInput.files.length > 0)
+            {
+                formData.append("image_url", imageInput.files[0]);
+            }
+            formData.append("remove_image", postRemoveImageFlag);
 
             fetch("edit_post.php", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded"
-                },
-
-                body:
-                    "post_id=" + encodeURIComponent(postId) +
-                    "&title=" + encodeURIComponent(title) +
-                    "&content=" + encodeURIComponent(content)
+                body: formData
             })
             .then(response => response.json())
             .then(data => {
+
+                console.log(data);
+
                 if(data.success)
                 {
-                    document.querySelector(".post-title").innerHTML = title;
-                    document.querySelector(".post-content").innerHTML = content.replace(/\n/g, "<br>");
                     showSnackbar("Post updated");
+
+                    setTimeout(() => {
+                        location.reload();
+                    }, 600);
                 }
                 else
                 {
-                    showSnackbar(data.message);
+                    showSnackbar(data.message || "Update failed");
                 }
+
             })
             .catch(error => {
                 console.error(error);
-                showSnackbar("Failed to update post");
+                showSnackbar("Something went wrong");
             });
         }
         
@@ -1309,23 +1454,16 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         window.onclick = function(event)
         {
             const modal = document.getElementById("reportModal");
-            const successModal = document.getElementById("deleteSuccessModal");
 
             if(event.target === modal)
             {
                 closeReportModal();
-            }
-
-            if(event.target === SuccessModal)
-            {
-                closeDeleteSuccessModal();
             }
         }
 
         function submitReport()
         {
             const postId = document.getElementById("reportPostId").value;
-
             const reason = document.querySelector('input[name="reason"]:checked');
 
             if(!reason)
@@ -1404,7 +1542,6 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                     window.location.href =
                         "subcommunity.php?id=<?php echo $post['sub_id']; ?>";
                         }, 1000);
-
                 }
                 else
                 {
@@ -1415,6 +1552,41 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                 console.error(error);
                 showSnackbar("Failed to delete post");
             });
+        }
+
+        function removePostImage() 
+        {
+
+            postRemoveImageFlag = 1;
+        
+            const container = document.querySelector(".post-image-container");
+        
+            const oldPreview = container.querySelector(".preview-wrapper");
+            if (oldPreview) oldPreview.remove();
+        
+            const oldUploadArea = container.querySelector(".upload-area");
+            if (oldUploadArea) oldUploadArea.remove();
+        
+            const uploadArea = document.createElement("div");
+            uploadArea.className = "upload-area";
+            uploadArea.innerHTML = `
+                <div style="font-size:32px;">🖼️</div>
+                <p>Click to upload or drag and drop</p>
+                <p style="font-size:12px;">JPG, PNG, GIF, WebP (Max 5MB)</p>
+            `;
+            uploadArea.onclick = function () {
+                document.getElementById("imageInput").click();
+            };
+        
+            const input = document.getElementById("imageInput");
+        
+            // Clear the previously selected file (since we're explicitly removing/replacing)
+            if (input) {
+                input.value = "";
+                container.insertBefore(uploadArea, input);
+            } else {
+                container.appendChild(uploadArea);
+            }
         }
 
     </script>
