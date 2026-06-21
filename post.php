@@ -345,6 +345,42 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             opacity: 1;
             bottom: 50px;
         }
+
+        .edit-comment-box {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .edit-comment-text {
+            width: 100%;
+            min-height: 90px;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            background: rgba(255, 255, 255, .05);
+            color: white;
+            resize: none;
+        }
+
+        .edit-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .edit-actions button {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, .08);
+            color: white;
+        }
+
+        .edit-actions button:last-child {
+            background: var(--accent);
+        }
     </style>
 </head>
 <body>
@@ -511,6 +547,14 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                                         </button>
                                     
                                         <div class="comment-dropdown">
+                                            <?php if(isset($_SESSION['user_id']) && $_SESSION['user_id'] == $comment['user_id']) : ?>
+                                                <a href="#" onclick="startEditComment(<?php echo $comment['id']; ?>,
+                                                `<?php echo htmlspecialchars($comment['content'], ENT_QUOTES); ?>`
+                                                ); return false;">
+                                                Edit    
+                                                </a>
+                                            <?php endif ?>
+
                                             <a href="#" onclick="openCommentReportModal(<?php echo $comment['id']; ?>); return false;">Report</a>
                                             <?php if (isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $comment['user_id'] || (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'))): ?>
                                                 <a href="#" onclick="openDeleteCommentModal(<?php echo $comment['id']; ?>); return false;">Delete</a>
@@ -579,6 +623,14 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                                                             </button>
 
                                                             <div class="comment-dropdown">
+                                                                 <?php if(isset($_SESSION['user_id']) && $_SESSION['user_id'] == $child['user_id']) : ?>
+                                                                    <a href="#" onclick="startEditComment(<?php echo $child['id']; ?>,
+                                                                    `<?php echo htmlspecialchars($child['content'], ENT_QUOTES); ?>`
+                                                                    ); return false;">
+                                                                    Edit    
+                                                                    </a>
+                                                                <?php endif ?>
+
                                                                 <a href="#" onclick="openCommentReportModal(<?php echo $child['id']; ?>); return false;">
                                                                     Report
                                                                 </a>
@@ -878,6 +930,62 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             setTimeout(() => {
                 snackbar.classList.remove("show");
             }, 6000);
+        }
+
+        function startEditComment(commentId, currentContent)
+        {
+            const comment = document.querySelector(`[data-comment-id="${commentId}"]`);
+            const content = comment.querySelector(".comment-content");
+            content.innerHTML = `
+            <div class="edit-comment-box">
+                <textarea id="edit-comment-${commentId}"
+                class="edit-comment-text">${currentContent}</textarea>
+
+                <div class="edit-actions">
+                    <button onclick="cancelEditComment(${commentId}, \`${currentContent}\`)">
+                    Cancel
+                    </button>
+
+                    <button onclick="saveEditComment(${commentId})">
+                    Save
+                    </button>
+                </div>
+            </div>
+            `;
+        }
+
+        function cancelEditComment(id, original)
+        {
+            document.querySelector(`[data-comment-id="${id}"] .comment-content`)
+            .innerHTML = original.replace(/\n/g, "<br>");
+        }
+
+        function saveEditComment(commentId)
+        {
+            const content = document.getElementById(`edit-comment-${commentId}`).value;
+
+            fetch("edit_comment.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body:
+                    "comment_id=" + encodeURIComponent(commentId) +
+                    "&content=" + encodeURIComponent(content)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success)
+                {
+                    document.querySelector(`[data-comment-id="${commentId}"] .comment-content`)
+                    .innerHTML = content.replace(/\n/g, "<br>");
+                    showSnackbar("Comment updated");
+                }
+                else
+                {
+                    showSnackbar(data.message);
+                }
+            });
         }
     </script>
 </body>
