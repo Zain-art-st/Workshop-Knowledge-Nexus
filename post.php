@@ -320,7 +320,31 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         .confirm-btn {width: 100%; padding: 15px; border: none; border-radius: 30px; margin-top: 20px; font-size: 18px; font-weight: bold; cursor: pointer;}
         .close-btn {float: right; font-size: 28px; cursor: pointer;}
 
-        
+        #snackbar {
+            visibility: hidden;
+            position: fixed;
+            left: 50%;
+            bottom: 30px;
+            transform translateX(-50%);
+            min-width: 280px;
+            max-width: 500px;
+            background: #2d2d2d;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 14px;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+            z-index: 99999;
+            opacity: 0;
+            transition: opacity .4s ease, bottom .4s ease;
+            font-size: 14px;
+        }
+
+        #snackbar.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
     </style>
 </head>
 <body>
@@ -611,6 +635,19 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         </div>
     </div>
 
+    <div id="reportCommentModal" class="report-modal">
+        <div class="report-content">
+            <h2>Report Comment</h2>
+            <p>Why are you reporting this comment?</p>
+            <input type="hidden" id="reportCommentId">
+            <textarea id="reportReason" placeholder="Enter reason..." style="width: 100%; min-height: 120px; padding: 12px; border-radius: 10px;"></textarea>
+            <button class="confirm-btn" onclick="submitCommentReport()">Submit</button>
+            <button class="confirm-btn" onclick="closeCommentReportModal()">Cancel</button>
+        </div>
+    </div>
+
+    <div id="snackbar"></div>
+
     <script>
         function vote(postId, voteType) {
             <?php if(!isset($_SESSION['user_id'])): ?>
@@ -725,6 +762,18 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             menu.style.display = menu.style.display === "block" ? "none" : "block";
         }
 
+        document.addEventListener("click", function(event)
+        {
+            const insideMenu = event.target.closest(".comment-menu");
+
+            if(!insideMenu)
+            {
+                document.querySelectorAll(".comment-dropdown").forEach(menu => {
+                    menu.style.display = "none";
+                });
+            }
+        });
+
         function openDeleteCommentModal(commentId)
         {
             document.getElementById("deleteCommentId").value = commentId;
@@ -755,6 +804,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                 {
                     closeDeleteCommentModal();
                     document.querySelector(`[data-comment-id="${id}"]`)?.remove();
+                    showSnackbar("Comment deleted successfully");
 
                     // Update comment counter
                     const commentBtn = document.querySelector(".action-btn");
@@ -772,6 +822,62 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             .catch(error=>{
                 console.error(error);
             });
+        }
+
+        function openCommentReportModal(commentId)
+        {
+            document.getElementById("reportCommentId").value = commentId;
+            document.getElementById("reportCommentModal").style.display = "flex";
+        }
+
+        function closeCommentReportModal()
+        {
+            document.getElementById("reportCommentModal").style.display = "none";
+            document.getElementById("reportReason").value = "";
+        }
+
+        function submitCommentReport()
+        {
+            const commentId = document.getElementById("reportCommentId").value;
+            const reason = document.getElementById("reportReason").value;
+            
+            fetch("report_comment.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+
+                body:
+                    "comment_id=" + encodeURIComponent(commentId) +
+                    "&reason=" + encodeURIComponent(reason)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success)
+                {
+                    closeCommentReportModal();
+                    showSnackbar(data.message);
+                }
+                else
+                {
+                    closeCommentReportModal();
+                    showSnackbar(data.message);
+                }
+            })
+            .catch(error => {
+                console.error(error);
+                showSnackbar("Something went wrong");
+            });
+        }
+
+        function showSnackbar(message)
+        {
+            const snackbar = document.getElementById("snackbar");
+            snackbar.textContent = message;
+            snackbar.classList.add("show");
+            setTimeout(() => {
+                snackbar.classList.remove("show");
+            }, 6000);
         }
     </script>
 </body>
