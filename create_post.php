@@ -1,365 +1,390 @@
 <?php
 session_start();
 include "db.php";
+if (!isset($_SESSION['user_id'])) { header("Location: login.php"); exit(); }
 
-// Redirect if not logged in
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit();
-}
+$user_id   = $_SESSION['user_id'];
+$user_type = $_SESSION['user_type'];
+$error     = "";
 
-$user_id = $_SESSION['user_id'];
-$error = "";
-$success = false;
+//Pre-selected sub from URL
+$preselect_sub = (int)($_GET['sub_id'] ?? 0);
 
-// Get subcommunity info if sub_id provided
-$sub_id = isset($_GET['sub_id']) ? intval($_GET['sub_id']) : (isset($_POST['sub_id']) ? intval($_POST['sub_id']) : 0);
-
-if ($sub_id) {
-    $sub_query = "SELECT * FROM subcommunities WHERE id = ?";
-    $sub_stmt = mysqli_prepare($conn, $sub_query);
-    mysqli_stmt_bind_param($sub_stmt, "i", $sub_id);
-    mysqli_stmt_execute($sub_stmt);
-    $sub_result = mysqli_stmt_get_result($sub_stmt);
-    $subcommunity = mysqli_fetch_assoc($sub_result);
-    
-    if (!$subcommunity) {
-        die("Subcommunity not found.");
-    }
-    
-    // Check if user is a member
-    $member_query = "SELECT id FROM sub_memberships WHERE user_id = ? AND sub_id = ?";
-    $member_stmt = mysqli_prepare($conn, $member_query);
-    mysqli_stmt_bind_param($member_stmt, "ii", $user_id, $sub_id);
-    mysqli_stmt_execute($member_stmt);
-    $member_result = mysqli_stmt_get_result($member_stmt);
-    
-    if (mysqli_num_rows($member_result) === 0) {
-        die("You must be a member of this subcommunity to post.");
-    }
+//Fetch joined subs
+if ($user_type === 'admin') {
+    $subs_res = mysqli_query($conn, "SELECT id, name FROM subcommunities ORDER BY name ASC");
 } else {
-    die("No subcommunity specified.");
+    $subs_res = mysqli_query($conn,
+        "SELECT s.id, s.name FROM subcommunities s
+         JOIN sub_memberships sm ON s.id = sm.sub_id
+         WHERE sm.user_id = $user_id
+         ORDER BY s.name ASC");
+}
+$my_subs = mysqli_fetch_all($subs_res, MYSQLI_ASSOC);
+
+define('MAX_FILE_BYTES', 10 * 1024 * 1024); // 10 MB
+
+function handleUpload($file, $type) {
+    if (!$file || $file['error'] !== UPLOAD_ERR_OK || $file['size'] === 0) return null;
+    if ($file['size'] > MAX_FILE_BYTES) return ['error' => 'File exceeds 10MB limit.'];
+
+    $dir = __DIR__ . '/uploads/posts/';
+    if (!is_dir($dir)) mkdir($dir, 0755, true);
+
+    if ($type === 'image') {
+        $allowed = ['image/jpeg','image/png','image/gif','image/webp'];
+        if (!in_array($file['type'], $allowed))
+            return ['error' => 'Image must be JPG, PNG, GIF or WebP.'];
+    } else {
+        $allowed_doc = [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'text/plain',
+        ];
+        if (!in_array($file['type'], $allowed_doc))
+            return ['error' => 'Document must be PDF, Word, PowerPoint, Excel or TXT.'];
+    }
+
+    $ext  = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $safe = preg_replace('/[^a-z0-9._-]/i', '_', $file['name']);
+    $name = ($type === 'image' ? 'post_img_' : 'post_doc_') . uniqid() . '_' . $safe;
+
+    if (move_uploaded_file($file['tmp_name'], $dir . $name))
+        return ['path' => 'uploads/posts/' . $name];
+
+    return ['error' => 'Upload failed. Check folder permissions.'];
 }
 
-// Handle post creation
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_post'])) {
-    $title = trim($_POST['title'] ?? '');
-    $content = trim($_POST['content'] ?? '');
-    $link_url = trim($_POST['link_url'] ?? '');
+if (isset($_POST['submit_post'])) {
+    $sub_id  = (int)($_POST['sub_id']    ?? 0);
+    $title   = trim($_POST['title']      ?? '');
+    $content = trim($_POST['content']    ?? '');
+    $link    = trim($_POST['link_url']   ?? '');
+    $tab     = $_POST['active_tab']      ?? 'text';
 
-    if($link_url === '')
-        {
-        $link_url = null;
+    if (!$sub_id)        { $error = "Please choose a community."; }
+    elseif (empty($title)) { $error = "Title is required."; }
+    elseif (strlen($title) > 300) { $error = "Title must be under 300 characters."; }
+    else {
+        // Membership check
+        if ($user_type !== 'admin') {
+            $mc = mysqli_fetch_assoc(mysqli_query($conn,
+                "SELECT id FROM sub_memberships WHERE user_id=$user_id AND sub_id=$sub_id LIMIT 1"));
+            if (!$mc) { $error = "You must join this community before posting."; }
         }
-    
-    // Validation
-    if (empty($title)) {
-        $error = "❌ Title is required.";
-    } elseif (strlen($title) < 3) {
-        $error = "❌ Title must be at least 3 characters. You have " . strlen($title) . " character(s).";
-    } elseif (strlen($title) > 300) {
-        $error = "❌ Title must not exceed 300 characters.";
-        $title = "";
-    } else {
-        $image_url = null;
-        
-        // Handle image upload
-        if (!empty($_FILES['image_url']['name'])) {
-            $file = $_FILES['image_url'];
-            $allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-            
-            if (!in_array($file['type'], $allowed)) {
-                $error = "❌ Invalid image format. Use JPEG, PNG, GIF, or WebP.";
-            } elseif ($file['size'] > 5 * 1024 * 1024) {
-                $error = "❌ Image file is too large. Max 5 MB.";
-            } elseif ($file['error'] !== UPLOAD_ERR_OK) {
-                $error = "❌ Error uploading image.";
-            } else {
-                $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-                $filename = 'post_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-                $dest = __DIR__ . '/uploads/posts/' . $filename;
-                
-                if (!is_dir(__DIR__ . '/uploads/posts')) {
-                    mkdir(__DIR__ . '/uploads/posts', 0755, true);
-                }
-                
-                if (move_uploaded_file($file['tmp_name'], $dest)) {
-                    $image_url = 'uploads/posts/' . $filename;
-                } else {
-                    $error = "❌ Failed to save image.";
-                }
+        // Sub-ban check
+        if (!$error) {
+            $bc = mysqli_fetch_assoc(mysqli_query($conn,
+                "SELECT id FROM sub_bans WHERE user_id=$user_id AND sub_id=$sub_id LIMIT 1"));
+            if ($bc) { $error = "You are suspended from posting in this community."; }
+        }
+
+        if (!$error) {
+            $image_url = null;
+            $file_url  = null;
+
+            if ($tab === 'image' && !empty($_FILES['image']['name'])) {
+                $res = handleUpload($_FILES['image'], 'image');
+                if (isset($res['error']))  { $error = $res['error']; }
+                elseif(isset($res['path'])){ $image_url = $res['path']; }
             }
-        }
-        
-        if (empty($error)) {
-            // Insert post
-            $insert_query = "INSERT INTO posts (user_id, sub_id, title, content, image_url, link_url) 
-                           VALUES (?, ?, ?, ?, ?, ?)";
-            $insert_stmt = mysqli_prepare($conn, $insert_query);
-            mysqli_stmt_bind_param($insert_stmt, "iissss", $user_id, $sub_id, $title, $content, $image_url, $link_url);
-            
-            if (mysqli_stmt_execute($insert_stmt)) {
-                $post_id = mysqli_insert_id($conn);
-                $success = true;
-                $_SESSION['success_msg'] = "✅ Post created successfully!";
-                header("Location: subcommunity.php?id=" . urlencode($subcommunity['id']));
-                exit();
+            if (!$error && $tab === 'doc' && !empty($_FILES['document']['name'])) {
+                $res = handleUpload($_FILES['document'], 'doc');
+                if (isset($res['error']))  { $error = $res['error']; }
+                elseif(isset($res['path'])){ $file_url = $res['path']; }
+            }
+            if (!$error && $tab === 'link') {
+                $link = !empty($link) ? $link : null;
             } else {
-                $error = "❌ Failed to create post. Please try again.";
+                $link = null;
+            }
+
+            if (!$error) {
+                $ins = mysqli_prepare($conn,
+                    "INSERT INTO posts (user_id, sub_id, title, content, image_url, link_url, file_url)
+                     VALUES (?,?,?,?,?,?,?)");
+                mysqli_stmt_bind_param($ins, "iisssss",
+                    $user_id, $sub_id, $title, $content,
+                    $image_url, $link, $file_url);
+                if (mysqli_stmt_execute($ins)) {
+                    header("Location: post.php?id=" . mysqli_insert_id($conn));
+                    exit();
+                } else {
+                    $error = "Post failed: " . mysqli_error($conn);
+                }
             }
         }
     }
 }
+
+$active_tab = $_POST['active_tab'] ?? ($_GET['tab'] ?? 'text');
+if (!in_array($active_tab, ['text','image','link','doc','rich'])) $active_tab = 'text';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create Post – ScholarSpace</title>
-    <link rel="stylesheet" href="styles.css">
-    <style>
-        .create-post-form { max-width: 700px; margin: 0 auto; }
-        .tab-group { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--card-border); }
-        .tab-btn { background: none; border: none; padding: 12px 16px; color: var(--text-muted); cursor: pointer; font-family: var(--font-body); font-size: 14px; border-bottom: 2px solid transparent; transition: all 0.2s; }
-        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .upload-area { border: 2px dashed var(--card-border); border-radius: 10px; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.2s; }
-        .upload-area:hover { border-color: var(--accent); background: rgba(79,142,247,.05); }
-        .upload-area.dragover { border-color: var(--accent); background: rgba(79,142,247,.1); }
-        .upload-preview { max-width: 100%; max-height: 300px; border-radius: 10px; margin: 16px 0; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Post – ScholarSpace</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .post-create-page  { max-width:700px; margin:0 auto; padding:0 20px 80px; }
+    .post-create-hdr   { padding:28px 0 20px; }
+    .post-create-hdr h1{ font-family:var(--font-display); font-size:24px; font-weight:800; }
 
-        .preview-wrapper {
-            position: relative;
-            display: inline-block;
-            margin-top: 16px;
-        }
+    /* sub selector */
+    .sub-selector {
+      display:flex; align-items:center; gap:12px; padding:13px 16px;
+      background:var(--bg-card); border:1px solid var(--card-border);
+      border-radius:12px; margin-bottom:16px; transition:border-color .2s;
+    }
+    .sub-selector:focus-within { border-color:var(--accent); }
+    .sub-selector select {
+      flex:1; background:none; border:none; outline:none;
+      color:var(--text-main); font-family:var(--font-display);
+      font-size:15px; font-weight:700; cursor:pointer;
+    }
+    .sub-selector select option { background:#1e1e35; }
 
-        .upload-preview {
-            max-width: 100%;
-            max-height: 300px;
-            border-radius: 10px;
-            display: block;
-        }
+    /* tabs */
+    .post-type-tabs {
+      display:flex; gap:0; background:rgba(255,255,255,.05);
+      border-radius:12px; padding:4px; margin-bottom:20px;
+    }
+    .post-type-tab {
+      flex:1; padding:9px; border:none; background:none;
+      color:var(--text-muted); border-radius:9px; cursor:pointer;
+      font-size:13px; font-weight:600; font-family:var(--font-body);
+      transition:all .2s; text-align:center;
+    }
+    .post-type-tab.active { background:rgba(79,142,247,.2); color:var(--accent); }
 
-        .remove-image-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 32px;
-            height: 32px;
-            border: none;
-            border-radius: 50%;
-            background: rgba(0,0,0,.7);
-            color: white;
-            font-size: 18px;
-            cursor: pointer;
-            opacity: 0;
-            transition: .2s
-        }
+    .post-type-pane { display:none; }
+    .post-type-pane.active { display:block; }
 
-        .preview-wrapper:hover .remove-image-btn{
-            opacity: 1;
-        }
+    /* compose card */
+    .post-compose {
+      background:var(--bg-card); border:1px solid var(--card-border); border-radius:16px; overflow:hidden;
+    }
+    .post-compose-title {
+      width:100%; padding:16px 20px; background:none;
+      border:none; border-bottom:1px solid var(--card-border); outline:none;
+      color:var(--text-main); font-family:var(--font-display);
+      font-size:18px; font-weight:700;
+    }
+    .post-compose-title::placeholder { color:var(--text-muted); }
+    .post-compose-body {
+      width:100%; min-height:140px; padding:14px 20px;
+      background:none; border:none; outline:none; resize:vertical;
+      color:var(--text-main); font-family:var(--font-body);
+      font-size:14px; line-height:1.8;
+    }
+    .post-compose-body::placeholder { color:var(--text-muted); }
+    .char-count-title { font-size:11px; color:var(--text-muted); text-align:right; padding:2px 20px 8px; }
 
-        .remove-image-btn:hover{
-            background: rgba(255,80,80,.9);
-        }
-    </style>
+    /* upload zone */
+    .upload-zone {
+      margin:0 16px 16px; border:2px dashed var(--card-border);
+      border-radius:10px; padding:28px; text-align:center;
+      cursor:pointer; transition:border-color .2s; position:relative;
+    }
+    .upload-zone:hover { border-color:var(--accent); }
+    .upload-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; z-index:1; }
+    .upload-preview-img { max-width:100%; max-height:220px; border-radius:8px; margin-top:12px; display:none; }
+
+    /* file info bar */
+    .file-info-bar {
+      display:none; margin:0 16px 16px; padding:12px 16px;
+      background:rgba(79,142,247,.08); border:1px solid rgba(79,142,247,.2);
+      border-radius:10px; align-items:center; gap:10px; font-size:13px;
+    }
+    .file-info-bar.show { display:flex; }
+    .file-size-note { font-size:11px; color:var(--text-muted); }
+
+    /* post footer */
+    .post-footer {
+      padding:14px 20px; border-top:1px solid var(--card-border);
+      display:flex; justify-content:flex-end; gap:10px;
+    }
+  </style>
 </head>
 <body>
-    <div class="stars-bg"></div>
-    <div class="sunset-bg"></div>
+<div class="stars-bg"></div>
+<div class="sunset-bg"></div>
 
-    <header class="navbar">
-        <a href="index.php" class="nav-logo">ScholarSpace</a>
-        <div class="nav-search">
-            <input type="text" class="search-input" placeholder="Search...">
-        </div>
-        <div class="nav-right">
-            <span class="nav-welcome">Welcome <strong><?php echo htmlspecialchars($_SESSION['username']); ?></strong></span>
-            <input type="checkbox" id="profile-toggle" class="profile-toggle-checkbox">
-            <label for="profile-toggle" class="profile-avatar">
-                <?php echo strtoupper(substr($_SESSION['username'], 0, 1)); ?>
-            </label>
-            <div class="profile-menu">
-                <a href="logout.php">Log Out</a>
-            </div>
-        </div>
-    </header>
+<header class="navbar">
+  <a href="dashboard.php" class="nav-logo">ScholarSpace</a>
+  <div class="nav-right" style="margin-left:auto;">
+    <a href="javascript:history.back()" style="font-size:13px;color:var(--text-muted);text-decoration:none;">✕ Cancel</a>
+  </div>
+</header>
 
-    <div class="page-wrapper">
-        <div class="create-post-form" style="padding: 0 20px;">
-            <div class="card" style="margin-bottom: 20px;">
-                <div style="padding: 20px; border-bottom: 1px solid var(--card-border);">
-                    <h1 style="font-family: var(--font-display); font-size: 24px; font-weight: 700; margin-bottom: 8px;">
-                        Create a post in <?php echo htmlspecialchars($subcommunity['name']); ?>
-                    </h1>
-                    <p style="color: var(--text-muted); font-size: 14px;">
-                        <?php echo htmlspecialchars($subcommunity['name']); ?>
-                    </p>
-                </div>
+<div class="page-wrapper">
+  <div class="post-create-page">
 
-                <?php if ($error): ?>
-                    <div style="background: rgba(255,79,106,.25); border: 2px solid #ff4f6a; color: #ff7a8a; padding: 16px 20px; border-radius: 10px; font-size: 15px; margin: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px;">
-                        <span style="font-size: 20px;">⚠️</span>
-                        <span><?php echo htmlspecialchars($error); ?></span>
-                    </div>
-                <?php endif; ?>
+    <div class="post-create-hdr"><h1>Create Post</h1></div>
 
-                <div style="padding: 20px;">
-                    <form method="POST" action="create_post.php?sub_id=<?php echo $sub_id; ?>" enctype="multipart/form-data">
-                        <!-- Tab Group -->
-                        <div class="tab-group">
-                            <button type="button" class="tab-btn active" onclick="switchTab('text')">📝 Text</button>
-                            <button type="button" class="tab-btn" onclick="switchTab('image')">🖼️ Image</button>
-                            <button type="button" class="tab-btn" onclick="switchTab('link')">🔗 Link</button>
-                        </div>
+    <?php if ($error): ?>
+    <div class="error-msg"><?php echo htmlspecialchars($error); ?></div>
+    <?php endif; ?>
 
-                        <!-- Text Tab (always visible, shown first) -->
-                        <div id="text-tab" class="tab-content active">
-                            <div class="form-group">
-                                <label>Post Title <span style="color: var(--danger);">*</span> (min 3 chars)</label>
-                                <input type="text" name="title" class="form-group input" 
-                                       placeholder="Enter an interesting title..."
-                                       value="<?php echo htmlspecialchars($title ?? ''); ?>"
-                                       required>
-                                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
-                                    <span id="title-count">0</span>/300 characters
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Content (Optional)</label>
-                                <textarea name="content" class="form-group textarea" 
-                                          placeholder="Share your thoughts, ideas, or discussion..."
-                                          style="min-height: 150px;"><?php echo htmlspecialchars($_POST['content'] ?? ''); ?></textarea>
-                            </div>
-                        </div>
-
-                        <!-- Image Tab -->
-                        <div id="image-tab" class="tab-content">
-                            <div class="form-group">
-                                <label>Add Image</label>
-                                <div class="upload-area" id="uploadArea" onclick="document.getElementById('imageInput').click()">
-                                    <div style="font-size: 32px; margin-bottom: 10px;">🖼️</div>
-                                    <p style="color: var(--text-muted);">Click to upload or drag and drop</p>
-                                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">JPG, PNG, GIF, or WebP (Max 5 MB)</p>
-                                </div>
-                                <input type="file" id="imageInput" name="image_url" accept="image/*" 
-                                       style="display: none;" onchange="previewImage(this)">
-
-                                <div class="preview-wrapper" id="previewWrapper" style="display: none;">
-                                    <img id="imagePreview" class="upload-preview" style="display: none;">
-                                    <button type="button" class="remove-image-btn" onclick="removeImage(event)">✕</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Link Tab -->
-                        <div id="link-tab" class="tab-content">
-                            <div class="form-group">
-                                <label>URL</label>
-                                <input type="url" name="link_url" class="form-group input" 
-                                       placeholder="https://example.com">
-                            </div>
-                        </div>
-
-                        <input type="hidden" name="sub_id" value="<?php echo $sub_id; ?>">
-
-                        <div style="display: flex; gap: 10px; margin-top: 20px;">
-                            <button type="submit" name="create_post" class="btn btn-primary" style="flex: 1;">
-                                Post
-                            </button>
-                            <a href="subcommunity.php?id=<?php echo urlencode($subcommunity['id']); ?>" 
-                               class="btn btn-secondary" style="flex: 1; text-decoration: none; text-align: center;">
-                                Cancel
-                            </a>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+    <?php if (empty($my_subs)): ?>
+    <div class="card card-body" style="text-align:center;padding:40px;">
+      <div style="font-size:40px;margin-bottom:12px;">🗂️</div>
+      <h3 style="font-family:var(--font-display);margin-bottom:8px;">No communities joined yet</h3>
+      <p style="color:var(--text-muted);font-size:14px;margin-bottom:16px;">Join a community first before posting.</p>
+      <a href="dashboard.php" class="btn btn-primary" style="max-width:200px;margin:0 auto;text-decoration:none;">Browse Communities</a>
     </div>
 
-    <script>
-        function switchTab(tab) {
-            // Hide all tabs
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            
-            // Show selected tab
-            document.getElementById(tab + '-tab').classList.add('active');
-            event.target.classList.add('active');
-        }
+    <?php else: ?>
 
-        function previewImage(input) {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const preview = document.getElementById('imagePreview');
-                    const wrapper = document.getElementById("previewWrapper");
-                    preview.src = e.target.result;
+    <form method="POST" action="create_post.php" enctype="multipart/form-data" id="postForm">
+      <input type="hidden" name="active_tab" id="activeTabInput" value="<?php echo htmlspecialchars($active_tab); ?>">
 
-                    // Show preview
-                    wrapper.style.display = "inline-block";
-                    preview.style.display = 'block';
-                    document.getElementById("uploadArea").style.display = "none";
-                };
-                reader.readAsDataURL(input.files[0]);
-            }
-        }
+      <!-- Sub selector -->
+      <div class="sub-selector">
+        <span style="font-size:18px;">🗂️</span>
+        <select name="sub_id" required>
+          <option value="">Choose a community…</option>
+          <?php foreach ($my_subs as $s): ?>
+          <option value="<?php echo $s['id']; ?>"
+            <?php echo ($s['id'] == $preselect_sub || $s['id'] == (int)($_POST['sub_id'] ?? 0)) ? 'selected' : ''; ?>>
+            <?php echo htmlspecialchars($s['name']); ?>
+          </option>
+          <?php endforeach; ?>
+        </select>
+      </div>
 
-        function removeImage(event)
-        {
-            event.stopPropagation();
+      <!-- Post type tabs -->
+      <div class="post-type-tabs">
+        <button type="button" class="post-type-tab <?php echo $active_tab==='text' ?'active':''; ?>"   onclick="switchTab('text',this)">  📝 Text</button>
+        <button type="button" class="post-type-tab <?php echo $active_tab==='image'?'active':''; ?>"   onclick="switchTab('image',this)"> 🖼️ Image</button>
+        <button type="button" class="post-type-tab <?php echo $active_tab==='link' ?'active':''; ?>"   onclick="switchTab('link',this)">  🔗 Link</button>
+        <button type="button" class="post-type-tab <?php echo $active_tab==='doc'  ?'active':''; ?>"   onclick="switchTab('doc',this)">   📄 Document</button>
+      </div>
 
-            const input = document.getElementById("imageInput");
-            const preview = document.getElementById("imagePreview");
-            const wrapper = document.getElementById("previewWrapper");
+      <div class="post-compose">
+        <!-- title shared across all-->
+        <input type="text" name="title" class="post-compose-title"
+               placeholder="Title *" maxlength="300" required
+               oninput="document.getElementById('titleCount').textContent=this.value.length"
+               value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>">
+        <div class="char-count-title"><span id="titleCount"><?php echo strlen($_POST['title']??''); ?></span> / 300</div>
 
-            input.value = "";
-            preview.src = "";
+        <!--text.just text.-->
+        <div class="post-type-pane <?php echo $active_tab==='text'?'active':''; ?>" id="pane-text">
+          <textarea name="content" class="post-compose-body"
+                    placeholder="What's on your mind? (optional)"><?php echo htmlspecialchars($_POST['content'] ?? ''); ?></textarea>
+        </div>
 
-            preview.style.display = "none";
-            wrapper.style.display = "none";
-            document.getElementById("uploadArea").style.display = "block";
-        }
+        <!--clikc images-->
+        <div class="post-type-pane <?php echo $active_tab==='image'?'active':''; ?>" id="pane-image">
+          <textarea name="content" class="post-compose-body" style="min-height:80px;"
+                    placeholder="Caption (optional)"><?php echo htmlspecialchars($_POST['content'] ?? ''); ?></textarea>
+          <div class="upload-zone" id="imgZone">
+            <input type="file" name="image" accept="image/*" onchange="previewImg(this)">
+            <div id="imgPlaceholder">
+              <div style="font-size:36px;margin-bottom:8px;">🖼️</div>
+              <div style="font-size:14px;color:var(--text-muted);">Click or drag to upload image</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">JPG, PNG, GIF, WebP — max 10MB</div>
+            </div>
+            <img id="imgPreview" class="upload-preview-img" src="" alt="">
+          </div>
+        </div>
 
-        // Drag and drop
-        const uploadArea = document.getElementById('uploadArea');
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            uploadArea.addEventListener(eventName, preventDefaults, false);
-        });
+        <!--link url-->
+        <div class="post-type-pane <?php echo $active_tab==='link'?'active':''; ?>" id="pane-link">
+          <textarea name="content" class="post-compose-body" style="min-height:80px;"
+                    placeholder="Describe this link (optional)"></textarea>
+          <div style="padding:0 16px 16px;">
+            <div class="form-group" style="margin-bottom:0;">
+              <label>URL</label>
+              <input type="url" name="link_url" placeholder="https://"
+                     value="<?php echo htmlspecialchars($_POST['link_url'] ?? ''); ?>">
+            </div>
+          </div>
+        </div>
 
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
+        <!--document upload-->
+        <div class="post-type-pane <?php echo $active_tab==='doc'?'active':''; ?>" id="pane-doc">
+          <textarea name="content" class="post-compose-body" style="min-height:80px;"
+                    placeholder="Describe the document (optional)"></textarea>
+          <div class="upload-zone" id="docZone">
+            <input type="file" name="document"
+                   accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
+                   onchange="previewDoc(this)">
+            <div id="docPlaceholder">
+              <div style="font-size:36px;margin-bottom:8px;">📄</div>
+              <div style="font-size:14px;color:var(--text-muted);">Click to upload document</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">PDF, Word, PowerPoint, Excel, TXT — max 10MB</div>
+            </div>
+          </div>
+          <div class="file-info-bar" id="fileInfoBar">
+            <span style="font-size:22px;">📄</span>
+            <div style="flex:1;overflow:hidden;">
+              <div id="docFileName" style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+              <div id="docFileSize" class="file-size-note"></div>
+            </div>
+          </div>
+        </div>
 
-        ['dragenter', 'dragover'].forEach(eventName => {
-            uploadArea.addEventListener(eventName, () => uploadArea.classList.add('dragover'), false);
-        });
+        <!--kaki-->
+        <div class="post-footer">
+          <a href="javascript:history.back()" class="btn btn-secondary"
+             style="text-decoration:none;display:inline-block;width:auto;padding:10px 20px;margin:0;">
+            Cancel
+          </a>
+          <button type="submit" name="submit_post" class="btn btn-primary" style="width:auto;padding:10px 28px;">
+            Post
+          </button>
+        </div>
+      </div>
+    </form>
 
-        ['dragleave', 'drop'].forEach(eventName => {
-            uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('dragover'), false);
-        });
+    <?php endif; ?>
+  </div>
+</div>
 
-        uploadArea.addEventListener('drop', (e) => {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            document.getElementById('imageInput').files = files;
-            previewImage(document.getElementById('imageInput'));
-        }, false);
+<script>
+function switchTab(name, btn) {
+  document.querySelectorAll('.post-type-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.post-type-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('pane-'+name).classList.add('active');
+  btn.classList.add('active');
+  document.getElementById('activeTabInput').value = name;
+}
 
-        // Character counter
-        const titleInput = document.querySelector('input[name="title"]');
-        const titleCount = document.getElementById('title-count');
-        
-        titleInput.addEventListener('input', () => {
-            titleCount.textContent = titleInput.value.length;
-        });
-    </script>
+function previewImg(input) {
+  if (!input.files[0]) return;
+  const r = new FileReader();
+  r.onload = e => {
+    const img = document.getElementById('imgPreview');
+    img.src = e.target.result;
+    img.style.display = 'block';
+    document.getElementById('imgPlaceholder').style.display = 'none';
+  };
+  r.readAsDataURL(input.files[0]);
+}
+
+function previewDoc(input) {
+  if (!input.files[0]) return;
+  const f  = input.files[0];
+  const mb = (f.size / (1024*1024)).toFixed(2);
+  document.getElementById('docFileName').textContent = f.name;
+  const sizeEl = document.getElementById('docFileSize');
+  sizeEl.textContent = mb + ' MB';
+  if (f.size > 10*1024*1024) {
+    sizeEl.textContent += ' — ⚠️ Exceeds 10MB limit!';
+    sizeEl.style.color = 'var(--danger)';
+  }
+  document.getElementById('fileInfoBar').classList.add('show');
+  document.getElementById('docPlaceholder').style.display = 'none';
+}
+</script>
 </body>
 </html>
