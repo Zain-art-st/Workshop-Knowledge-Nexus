@@ -41,7 +41,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
     <link rel="stylesheet" href="styles.css">
     <style>
         .post-container {max-width: 700px; margin: 0 auto; padding: 0 20px; position: relative;}
-        .post-card {width: 100%; margin-bottom: 20px;}
+        .post-card {width: 100%; margin-bottom: 20px; display: flex; justify-content: flex-start; gap: 16px;}
 
         .post-header {
             display: flex;
@@ -307,11 +307,11 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         .reply-submit {background: var(--accent); border: none; color: white; padding: 8px 18px; border-radius: 10px; cursor:pointer}
         .back-btn {position: absolute; left: -30px; top: 18px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; text-decoration: none; color: var(--text-main); font-size: 28px; transition: .2s;}
         .back-btn:hover {background: rgba(255, 255, 255, .08); color: var(--accent);}
-        .comment-menu {position: relative; background: rgba(255, 255, 255, .06); border: none; border-radius: 20px; color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 0; transition: color 0.2s;}
+        .comment-menu, .post-menu {position: relative; background: rgba(255, 255, 255, .06); border: none; border-radius: 20px; color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 0; transition: color 0.2s;}
         .comment-menu-btn {background: none; border: none; color: white; cursor: pointer; font-size: 18px; padding: 6px;}
-        .comment-dropdown {display: none; position: absolute; top: 110%; right: 0; min-width: 140px; background: #1e1e35; border: 1px solid rgba(255, 255, 255, .15); border-radius: 10px; overflow: hidden; z-index: 100;}
-        .comment-dropdown a {display: block; padding: 10px 14px; color: white; text-decoration: none;}
-        .comment-dropdown a:hover {background: rgba(255, 255, 255, .08);}
+        .comment-dropdown, .post-dropdown {display: none; position: absolute; top: 110%; right: 0; min-width: 140px; background: #1e1e35; border: 1px solid rgba(255, 255, 255, .15); border-radius: 10px; overflow: hidden; z-index: 100;}
+        .comment-dropdown a, .post-dropdown a {display: block; padding: 10px 14px; color: white; text-decoration: none;}
+        .comment-dropdown a:hover, .post-dropdown a:hover {background: rgba(255, 255, 255, .08);}
 
         .report-modal {display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 9999; justify-content: center; align-items: center;}
         .report-content {width: 600px; max-width: 90%; background: #2d2d2d; border-radius: 30px; padding: 40px; color: white;}
@@ -381,6 +381,54 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         .edit-actions button:last-child {
             background: var(--accent);
         }
+
+        .edit-post-title{
+            width:100%;
+            padding:12px;
+            background:rgba(255,255,255,.05);
+            border:1px solid var(--card-border);
+            border-radius:12px;
+            color:var(--text-main);
+            font-size:20px;
+            font-family:var(--font-display);
+            outline:none;
+            margin-bottom:12px;
+            box-sizing: border-box;
+        }
+
+        .edit-post-title:focus{
+            border-color:var(--accent);
+            background:rgba(79,142,247,.08);
+        }
+
+        .edit-post-content{
+            width:100%;
+            min-height:140px;
+            padding:12px;
+            border-radius:12px;
+            background:rgba(255,255,255,.05);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            resize:none;
+            font-size:14px;
+            outline:none;
+            box-sizing: border-box;
+        }
+
+        .edit-post-content:focus{
+            border-color: var(--accent);
+            background:rgba(79,142,247,.08);
+        }
+        
+        .post-left {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .post-right {
+            flex-shrink: 0;
+        }
+        
     </style>
 </head>
 <body>
@@ -419,62 +467,86 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         <div class="post-container">
             <a href="subcommunity.php?id=<?php echo $post['sub_id']; ?>" class="back-btn">&larr;</a>
             <!-- Post Card -->
-            <div class="card post-card">
+            <div class="card post-card" data-post-id="<?php echo $post['id']; ?>">
                 <!-- Post Header -->
-                <div class="post-header">
-                    <div class="post-avatar">
-                    <?php echo strtoupper(substr($post['username'], 0, 1)); ?>
-                    </div>
-                    <div class="post-header-info">
-                        <div class="post-username"><?php echo htmlspecialchars($post['username']); ?></div>
-                        <div class="post-time">
-                            <?php
-                                $time_diff = time() - strtotime($post['created_at']);
-                                if($time_diff < 60) echo "just now";
-                                else if($time_diff < 3600) echo floor($time_diff / 60) . " min ago";
-                                else if($time_diff < 86400) echo floor($time_diff / 3600) . " hours ago";
-                                else echo floor($time_diff / 86400) . " days ago";
-                            ?>
+                <div class="post-left">
+                    <div class="post-header">
+                        <div class="post-avatar">
+                        <?php echo strtoupper(substr($post['username'], 0, 1)); ?>
+                        </div>
+                        <div class="post-header-info">
+                            <div class="post-username"><?php echo htmlspecialchars($post['username']); ?></div>
+                            <div class="post-time">
+                                <?php
+                                    $time_diff = time() - strtotime($post['created_at']);
+                                    if($time_diff < 60) echo "just now";
+                                    else if($time_diff < 3600) echo floor($time_diff / 60) . " min ago";
+                                    else if($time_diff < 86400) echo floor($time_diff / 3600) . " hours ago";
+                                    else echo floor($time_diff / 86400) . " days ago";
+                                ?>
+                            </div>
                         </div>
                     </div>
+
+
+                    <!-- Post Title & Content -->
+                    <div class="post-title"><?php echo htmlspecialchars($post['title']); ?></div>
+
+                    <?php if($post['content']) : ?>
+                        <div class="post-content"><?php echo nl2br(htmlspecialchars($post['content'])); ?></div>
+                    <?php endif; ?>
+
+                    <!-- Post Image -->
+                    <?php if($post['image_url']): ?>
+                        <img src="<?php echo htmlspecialchars($post['image_url']); ?>" alt="Post image" class="post-image">
+                    <?php endif; ?>
+
+                    <!-- Post Link -->
+                    <?php if (!empty($post['link_url'])): ?>
+                        <a href="<?php echo htmlspecialchars(
+                            preg_match('/^https?:\/\//', $post['link_url'])
+                            ? $post['link_url']
+                            : 'https://' . $post['link_url']
+                        ); ?>" class="post-link" target="_blank" rel="noopener noreferrer">
+                        <?php echo htmlspecialchars($post['link_url']);?></a>
+                    <?php endif; ?>
+
+                    <!-- Post Actions -->
+                    <div class="post-actions">
+                        <div class="vote-group">
+                            <button type="button" class="vote-btn upvote" onclick="vote(<?php echo $post['id']; ?>, 'upvote')">▲</button>
+                            <span class="vote-count" id="upvotes-<?php echo $post['id'];?>"><?php echo $post['upvotes']; ?></span>
+                            <span style="width:1px; height: 20px; background: rgba(255,255,255,.25)"></span>
+                            <span class="vote-count" id="downvotes-<?php echo $post['id'];?>"><?php echo $post['downvotes'];?></span>
+                            <button type="button" class="vote-btn downvote" onclick="vote(<?php echo $post['id']; ?>, 'downvote')">▼</button>
+                        </div>
+                        <button class="action-btn">💬 <?php echo count($comments); ?> Comments</button>
+                    </div> 
                 </div>
+                <div class="post-right">
+                    <div class="post-menu">
+                            <button class="action-btn" onclick="togglePostMenu(this)" style="font-size: 20px; margin:20px 20px 0 0; color: white">&#8942;</button>
+                            <div class="post-dropdown">
+                            <?php if(isset($_SESSION['user_id']) && $_SESSION['user_id'] == $post['user_id']) : ?>
+                                <a href="#" onclick="closePostMenus(); startEditPost(<?php echo $post['id']; ?>,
+                                `<?php echo htmlspecialchars($post['title'], ENT_QUOTES); ?>`,
+                                `<?php echo htmlspecialchars($post['content'], ENT_QUOTES); ?>`
+                                ); return false;">
+                                Edit
+                                </a>
+                            <?php endif; ?>
 
-
-             <!-- Post Title & Content -->
-              <div class="post-title"><?php echo htmlspecialchars($post['title']); ?></div>
-
-              <?php if($post['content']) : ?>
-                <div class="post-content"><?php echo nl2br(htmlspecialchars($post['content'])); ?></div>
-              <?php endif; ?>
-
-              <!-- Post Image -->
-               <?php if($post['image_url']): ?>
-                <img src="<?php echo htmlspecialchars($post['image_url']); ?>" alt="Post image" class="post-image">
-               <?php endif; ?>
-
-               <!-- Post Link -->
-                <?php if (!empty($post['link_url'])): ?>
-                    <a href="<?php echo htmlspecialchars(
-                        preg_match('/^https?:\/\//', $post['link_url'])
-                        ? $post['link_url']
-                        : 'https://' . $post['link_url']
-                    ); ?>" class="post-link" target="_blank" rel="noopener noreferrer">
-                    <?php echo htmlspecialchars($post['link_url']);?></a>
-                <?php endif; ?>
-
-              <!-- Post Actions -->
-                <div class="post-actions">
-                    <div class="vote-group">
-                        <button type="button" class="vote-btn upvote" onclick="vote(<?php echo $post['id']; ?>, 'upvote')">▲</button>
-                        <span class="vote-count" id="upvotes-<?php echo $post['id'];?>"><?php echo $post['upvotes']; ?></span>
-                        <span style="width:1px; height: 20px; background: rgba(255,255,255,.25)"></span>
-                        <span class="vote-count" id="downvotes-<?php echo $post['id'];?>"><?php echo $post['downvotes'];?></span>
-                        <button type="button" class="vote-btn downvote" onclick="vote(<?php echo $post['id']; ?>, 'downvote')">▼</button>
+                            <a href="#" onclick="openReportModal(<?php echo $post['id']; ?>); return false;">Report</a>
+                            
+                            <?php $canDelete = isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $post['user_id'] || ($_SESSION['role'] ?? '') === 'admin'); ?>
+                            <?php if($canDelete): ?>
+                                <a href="#" onclick="openDeleteModal(<?php echo $post['id']; ?>); return false;">Delete</a>
+                            <?php endif; ?>
+                            </div>
                     </div>
-                    <button class="action-btn">💬 <?php echo count($comments); ?> Comments</button>
-
-                </div> 
+                </div>
             </div>
+            
 
         
 
@@ -548,7 +620,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                                     
                                         <div class="comment-dropdown">
                                             <?php if(isset($_SESSION['user_id']) && $_SESSION['user_id'] == $comment['user_id']) : ?>
-                                                <a href="#" onclick="startEditComment(<?php echo $comment['id']; ?>,
+                                                <a href="#" onclick="closeCommentMenus(); startEditComment(<?php echo $comment['id']; ?>,
                                                 `<?php echo htmlspecialchars($comment['content'], ENT_QUOTES); ?>`
                                                 ); return false;">
                                                 Edit    
@@ -624,7 +696,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 
                                                             <div class="comment-dropdown">
                                                                  <?php if(isset($_SESSION['user_id']) && $_SESSION['user_id'] == $child['user_id']) : ?>
-                                                                    <a href="#" onclick="startEditComment(<?php echo $child['id']; ?>,
+                                                                    <a href="#" onclick="closeCommentMenus(); startEditComment(<?php echo $child['id']; ?>,
                                                                     `<?php echo htmlspecialchars($child['content'], ENT_QUOTES); ?>`
                                                                     ); return false;">
                                                                     Edit    
@@ -800,6 +872,20 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             container.querySelector('.reply-cancel').onclick = function() {container.innerHTML = '';};
         }
 
+        function togglePostMenu(button)
+        {
+            const menu = button.nextElementSibling;
+
+            document.querySelectorAll(".post-dropdown").forEach(m => {
+                if(m !== menu)
+                {
+                    m.style.display = "none";
+                }
+            });
+
+            menu.style.display = menu.style.display === "block" ? "none" : "block";
+        }
+
         function toggleCommentMenu(button)
         {
             const menu = button.nextElementSibling;
@@ -821,6 +907,16 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             if(!insideMenu)
             {
                 document.querySelectorAll(".comment-dropdown").forEach(menu => {
+                    menu.style.display = "none";
+                });
+            }
+        });
+
+        document.addEventListener("click", function(event)
+        {
+            if(!event.target.closest(".post-menu"))
+            {
+                document.querySelectorAll(".post-dropdown").forEach(menu => {
                     menu.style.display = "none";
                 });
             }
@@ -985,6 +1081,96 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                 {
                     showSnackbar(data.message);
                 }
+            });
+        }
+
+        function startEditPost(postId, oldTitle, oldContent)
+        {
+            const post = document.querySelector(".post-card");
+            const title = post.querySelector(".post-title");
+            const content = post.querySelector(".post-content");
+
+            title.innerHTML = `
+                <input
+                    id="edit-post-title"
+                    value="${oldTitle}"
+                    class="edit-post-title"
+                >
+            `;
+
+            content.innerHTML = `
+                <div class="reply-box">
+                    <textarea
+                        id="edit-post-content"
+                        class="edit-post-content"
+                    >${oldContent}</textarea>
+
+                    <div class="edit-actions">
+                        <button onclick="cancelEditPost(\`${oldTitle}\`, \`${oldContent}\`)">
+                            Cancel
+                        </button>
+
+                        <button
+                            onclick="savePostEdit(${postId})">
+                            Save
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function cancelEditPost(originalTitle, originalContent)
+        {
+            document.querySelector(".post-title").innerHTML = originalTitle;
+            document.querySelector(".post-content").innerHTML = originalContent.replace(/\n/g, "<br>");
+        }
+        
+        function savePostEdit(postId)
+        {
+            const title = document.getElementById("edit-post-title").value;
+            const content = document.getElementById("edit-post-content").value;
+
+            fetch("edit_post.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+
+                body:
+                    "post_id=" + encodeURIComponent(postId) +
+                    "&title=" + encodeURIComponent(title) +
+                    "&content=" + encodeURIComponent(content)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success)
+                {
+                    document.querySelector(".post-title").innerHTML = title;
+                    document.querySelector(".post-content").innerHTML = content.replace(/\n/g, "<br>");
+                    showSnackbar("Post updated");
+                }
+                else
+                {
+                    showSnackbar(data.message);
+                }
+            })
+            .catch(error => {
+                console.error(error);
+                showSnackbar("Failed to update post");
+            });
+        }
+        
+        function closePostMenus()
+        {
+            document.querySelectorAll(".post-dropdown").forEach(menu => {
+                menu.style.display = "none";
+            });
+        }
+
+        function closeCommentMenus()
+        {
+            document.querySelectorAll(".comment-dropdown").forEach(menu => {
+                menu.style.display = "none";
             });
         }
     </script>

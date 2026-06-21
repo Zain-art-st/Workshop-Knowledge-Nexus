@@ -355,8 +355,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                     </div>
                                     <div class="post-right">
                                         <div class="post-menu">
-                                             <button class="action-btn" onclick="toggleMenu(this)" style="font-size: 20px">&#8942;</button>
+                                             <button class="action-btn" onclick="toggleMenu(this)" style="font-size: 20px; color: white">&#8942;</button>
                                              <div class="dropdown-menu">
+
                                                 <a href="#" onclick="openReportModal(<?php echo $post['id']; ?>); return false;">Report</a>
                                                 
                                                 <?php $canDelete = isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $post['user_id'] || ($_SESSION['role'] ?? '') === 'admin'); ?>
@@ -687,6 +688,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         function closeDeleteSuccessModal()
         {
             document.getElementById("deleteSuccessModal").style.display = "none";
+        }
+
+        function startEditPost(postId, oldTitle, oldContent)
+        {
+            const card = document.querySelector(`[data-post-id="${postId}"]`);
+            const title = card.querySelector(".post-title");
+            const content = card.querySelector(".post-content");
+            
+            title.innerHTML =
+            `
+            <input id="edit-title" value="${oldTitle}"
+            style="width: 100%; padding: 10px; border-radius: 10px;">
+            `;
+
+            content.innerHTML =
+            `
+            <textarea id="edit-content" style="width: 100%; min-height: 120px;
+            padding: 12px; border-radius: 12px;">${oldContent}</textarea>
+
+            <div style="margin-top: 10px; display: flex;
+            gap: 10px;">
+
+            <button onclick="savePostEdit(${postId})">
+            Save
+            </button>
+
+            <button onclick="location.reload()">
+            Cancel
+            </button>
+
+            </div>
+            `;
+        }
+        
+        function savePostEdit(postId)
+        {
+            const title = document.getElementById("edit-title").value;
+            const content = document.getElementById("edit-content").value;
+
+            fetch("edit_post.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+
+                body:
+                    "post_id=" + postId +
+                    "&title=" + encodeURIComponent(title) +
+                    "&content=" + encodeURIComponent(content)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success)
+                {
+                    showSnackbar("Post updated");
+                    location.reload();
+                }
+                else
+                {
+                    showSnackbar(data.message);
+                }
+            });
         }
 
         // Unique key based on the page URL path to handle multiple pages
