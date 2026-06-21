@@ -1,5 +1,8 @@
 <?php
 session_start();
+
+date_default_timezone_set('Asia/Kuala_Lumpur');
+
 include "db.php";
 
 $post_id = intval($_GET['id']);
@@ -84,6 +87,9 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             padding: 0 20px 12px 20px;
             color: var(--text-main);
             line-height: 1.4;
+            overflow-wrap: break-word; 
+            word-wrap: break-word; 
+            word-break: break-word;
         }
 
         .post-content {
@@ -91,6 +97,9 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             font-size: 14px;
             color: var(--text-muted);
             line-height: 1.6;
+            overflow-wrap: break-word; 
+            word-wrap: break-word; 
+            word-break: break-word;
         }
 
         .post-image {
@@ -220,6 +229,9 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             color: var(--text-muted);
             line-height: 1.5;
             margin-bottom: 8px;
+            overflow-wrap: break-word; 
+            word-wrap: break-word; 
+            word-break: break-word;
         }
 
         .comment-actions {
@@ -295,7 +307,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             font-size: 14px;
         }
 
-        .post-link {color: var(--accent); text-decoration: none; font-weight: 500; display: inline-block; margin: 5px 0 10px 20px; transition: 0.2s;}
+        .post-link {color: var(--accent); text-decoration: none; font-weight: 500; display: inline-block; margin: 5px 0 10px 20px; transition: 0.2s; overflow-wrap: break-word; word-wrap: break-word; word-break: break-word;}
         .post-link:hover {color: #6fa8ff; text-decoration: underline;}
         .post-link:visited {color: #b78cff;}
         .child-comments {margin-top: 12px;}
@@ -1289,6 +1301,9 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         function closeReportModal()
         {
             document.getElementById("reportModal").style.display = "none";
+            document.querySelectorAll('input[name="reason"]').forEach(r => {
+                r.checked = false;
+            });
         }
 
         window.onclick = function(event)
@@ -1335,16 +1350,17 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                 
                 if(data === "success")
                 {
-                    alert("Report submitted");
+                    showSnackbar("Report submitted");
                     closeReportModal();
                 }
                 else if(data === "already_reported")
                 {
-                    alert("You have already reported this post");
+                    showSnackbar("You have already reported this post");
+                    closeReportModal();
                 }
                 else
                 {
-                    alert("Failed to submit report");
+                    showSnackbar("Failed to submit report");
                 }
             })
             .catch(error => {

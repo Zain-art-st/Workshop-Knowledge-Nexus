@@ -1,5 +1,8 @@
 <?php
 session_start();
+
+date_default_timezone_set('Asia/Kuala_Lumpur');
+
 include "db.php";
 
 // Check if database connection exists
@@ -173,9 +176,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         .post-preview:last-child { border-bottom: none; }
         .post-info {display: flex; flex: 1; justify-content: space-between;}
         .post-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
-        .post-title { font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--text-main); cursor: pointer; }
+        .post-title { font-family: var(--font-display); font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--text-main); cursor: pointer; overflow-wrap: break-word; word-wrap: break-word; word-break: break-word; }
         .post-title:hover { color: var(--accent); }
-        .post-snippet { font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px; }
+        .post-snippet { font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-bottom: 10px; overflow-wrap: break-word; word-wrap: break-word; word-break: break-word; }
         .post-image { width: 100%; max-width: 300px; height: 200px; object-fit: cover; border-radius: 10px; margin: 10px 0; }
         .post-menu {position: relative; display: inline-block;}
         .dropdown-menu {display: none;position: absolute; top: 100%; right: 0; min-width: 150px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,.2); z-index: 1000; background:#1e1e35; border:1px solid var(--card-border);}
@@ -577,6 +580,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         function closeReportModal()
         {
             document.getElementById("reportModal").style.display = "none";
+
+            document.querySelectorAll('input[name="reason"]').forEach(r => {
+                r.checked = false;
+            });
         }
 
         window.onclick = function(event)
@@ -626,6 +633,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 else if(data === "already_reported")
                 {
                     showSnackbar("You already reported this post");
+                    closeReportModal();
                 }
                 else
                 {
