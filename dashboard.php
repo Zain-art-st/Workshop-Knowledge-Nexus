@@ -53,6 +53,7 @@ function ava($photo,$name,$size=32){
     return "<span style='font-size:{$fs}px;font-weight:700;color:#fff;'>$init</span>";
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
