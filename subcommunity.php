@@ -93,14 +93,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     if ($_POST['action'] === 'join') {
-        $join_query = "INSERT INTO sub_memberships (user_id, sub_id, role) VALUES (?, ?, 'member')
+        $role = ($user_id == $subcommunity['creator_id']) ? 'moderator' : 'member';
+        $join_query = "INSERT INTO sub_memberships (user_id, sub_id, role) VALUES (?, ?, ?)
                        ON DUPLICATE KEY UPDATE role = VALUES(role)";
         $join_stmt = mysqli_prepare($conn, $join_query);
-        mysqli_stmt_bind_param($join_stmt, "ii", $user_id, $sub_id);
+        mysqli_stmt_bind_param($join_stmt, "iis", $user_id, $sub_id, $role);
         if (mysqli_stmt_execute($join_stmt)) {
-            // Update member count
             $is_member = true;
-            $member_role = 'member';
+            $member_role = $role;
         }
     } elseif ($_POST['action'] === 'leave') {
         $leave_query = "DELETE FROM sub_memberships WHERE user_id = ? AND sub_id = ?";
@@ -378,7 +378,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                                                 <a href="#" onclick="openReportModal(<?php echo $post['id']; ?>); return false;">Report</a>
                                                 
-                                                <?php $canDelete = isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $post['user_id'] || ($_SESSION['role'] ?? '') === 'admin'); ?>
+                                                <?php $canDelete = isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $post['user_id'] || ($_SESSION['role'] ?? '') === 'admin') || ($is_member && $member_role === 'moderator'); ?>
                                                 <?php if($canDelete): ?>
                                                     <a href="#" onclick="openDeleteModal(<?php echo $post['id']; ?>); return false;">Delete</a>
                                                 <?php endif; ?>

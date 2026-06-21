@@ -35,8 +35,8 @@ if(!isset($_POST["comment_id"]))
 $user_id = $_SESSION["user_id"];
 $comment_id = intval($_POST["comment_id"]);
 
-// Check ownership
-$check_query = "SELECT user_id FROM comments WHERE id = ? LIMIT 1";
+// Check ownership, and find which subcommunity this comment's post belongs to
+$check_query = "SELECT c.user_id, p.sub_id FROM comments c JOIN posts p ON c.post_id = p.id WHERE c.id = ? LIMIT 1";
 $check_stmt = mysqli_prepare($conn, $check_query);
 mysqli_stmt_bind_param($check_stmt, "i", $comment_id);
 mysqli_stmt_execute($check_stmt);
@@ -53,19 +53,31 @@ if(!$comment)
     exit();
 }
 
-// Only owner can delete
-if($comment["user_id"] != $user_id)
-{
-    mysqli_stmt_close($check_stmt);
+mysqli_stmt_close($check_stmt);
 
+$isOwner = $comment["user_id"] == $user_id;
+$isAdmin = ($_SESSION['role'] ?? '') === 'admin';
+
+// Check if user is a moderator of the subcommunity this comment's post belongs to
+$isModerator = false;
+$mod_query = "SELECT role FROM sub_memberships WHERE user_id = ? AND sub_id = ?";
+$mod_stmt = mysqli_prepare($conn, $mod_query);
+mysqli_stmt_bind_param($mod_stmt, "ii", $user_id, $comment["sub_id"]);
+mysqli_stmt_execute($mod_stmt);
+$mod_result = mysqli_stmt_get_result($mod_stmt);
+if ($mod_row = mysqli_fetch_assoc($mod_result)) {
+    $isModerator = ($mod_row['role'] === 'moderator');
+}
+mysqli_stmt_close($mod_stmt);
+
+if(!$isOwner && !$isAdmin && !$isModerator)
+{
     echo json_encode([
         "success" => false,
         "message" => "unauthorized"
     ]);
     exit();
 }
-
-mysqli_stmt_close($check_stmt);
 
 // Soft delete
 $remove_query = "UPDATE comments SET is_removed = 1 WHERE id = ? OR parent_id = ?";

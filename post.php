@@ -32,7 +32,20 @@ while($comment = mysqli_fetch_assoc($comments_result))
     $comments[] = $comment;
     }
 
-$user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
+
+// Check if current user is a moderator of this post's subcommunity
+$is_moderator = false;
+if (isset($_SESSION['user_id'])) {
+    $mod_query = "SELECT role FROM sub_memberships WHERE user_id = ? AND sub_id = ?";
+    $mod_stmt = mysqli_prepare($conn, $mod_query);
+    mysqli_stmt_bind_param($mod_stmt, "ii", $_SESSION['user_id'], $post['sub_id']);
+    mysqli_stmt_execute($mod_stmt);
+    $mod_result = mysqli_stmt_get_result($mod_stmt);
+    if ($mod_row = mysqli_fetch_assoc($mod_result)) {
+        $is_moderator = ($mod_row['role'] === 'moderator');
+    }
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -603,7 +616,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 
                             <a href="#" onclick="openReportModal(<?php echo $post['id']; ?>); return false;">Report</a>
                             
-                            <?php $canDelete = isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $post['user_id'] || ($_SESSION['role'] ?? '') === 'admin'); ?>
+                            <?php $canDelete = isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $post['user_id'] || ($_SESSION['role'] ?? '') === 'admin' || $is_moderator); ?>
                             <?php if($canDelete): ?>
                                 <a href="#" onclick="openDeleteModal(<?php echo $post['id']; ?>); return false;">Delete</a>
                             <?php endif; ?>
@@ -693,7 +706,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                                             <?php endif ?>
 
                                             <a href="#" onclick="openCommentReportModal(<?php echo $comment['id']; ?>); return false;">Report</a>
-                                            <?php if (isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $comment['user_id'] || (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'))): ?>
+                                            <?php if (isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $comment['user_id'] || (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') || $is_moderator)): ?>
                                                 <a href="#" onclick="openDeleteCommentModal(<?php echo $comment['id']; ?>); return false;">Delete</a>
                                             <?php endif; ?>
                                         </div>
@@ -772,7 +785,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                                                                     Report
                                                                 </a>
 
-                                                                <?php if(isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $child['user_id'] || (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'))): ?>
+                                                                <?php if(isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $child['user_id'] || (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') || $is_moderator)): ?>
                                                                     <a href="#" onclick="openDeleteCommentModal(<?php echo $child['id']; ?>); return false;">
                                                                         Delete
                                                                     </a>
