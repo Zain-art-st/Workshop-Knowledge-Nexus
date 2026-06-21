@@ -998,3 +998,129 @@ body {
 .hidden {
   display: none !important;
 }
+/* ==========================================
+   ===== SCHOLARSPACE SIDEBAR OVERLAY ===== 
+   ========================================== */
+
+/* Sidebar sliding panel container */
+.sidebar-panel {
+  position: fixed;
+  top: 0;
+  right: -340px; /* Kept off-screen initially */
+  width: 320px;
+  height: 100vh;
+  background-color: var(--bg-card-solid); /* Seamlessly uses your dashboard's solid dark background */
+  border-left: 1px solid var(--card-border); /* Matches your existing light borders */
+  box-shadow: -10px 0 32px rgba(0, 0, 0, 0.5);
+  transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 2000; /* Placed completely above the top navbar */
+  font-family: var(--font-body);
+  color: var(--text-main);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Toggled open state triggered via JavaScript class toggling */
+.sidebar-panel.panel-open {
+  right: 0;
+}
+
+/* Close icon button (X) */
+.sidebar-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 300;
+  cursor: pointer;
+  transition: color 0.2s, transform 0.2s;
+}
+.sidebar-close-btn:hover {
+  color: var(--danger); /* Glowing red exit hint on hover */
+  transform: scale(1.1);
+}
+
+/* User Identity Header Section */
+.sidebar-user-header {
+  padding: 48px 24px 24px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+/* Profile Avatar Initial Wrapper circle */
+.sidebar-avatar-placeholder {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2)); /* Uses your blue-to-purple gradient */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(79, 142, 247, 0.25);
+}
+
+/* Text elements inside sidebar profile heading */
+.sidebar-user-info h3 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  margin-bottom: 2px;
+}
+.sidebar-user-info p {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Navigation Menu Stack Layout */
+.sidebar-links-wrapper {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 0;
+}
+
+/* Core menu list item links */
+.sidebar-link-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 24px;
+  color: var(--text-main);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  transition: background 0.2s ease, color 0.2s ease, padding-left 0.2s ease;
+}
+
+/* Hover micro-interactions */
+.sidebar-link-item:hover {
+  background-color: var(--bg-card);
+  color: var(--accent); /* Changes text color to your bright neon blue */
+  padding-left: 32px; /* Smooth responsive slide-in shift effect */
+}
+
+/* Visual icon alignment width */
+.sidebar-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+/* Admin block specific highlight accent color */
+.sidebar-link-item.admin-highlight {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.sidebar-link-item.admin-highlight:hover {
+  color: var(--accent2); /* Gives the administrator link your custom purple glow */
+}
