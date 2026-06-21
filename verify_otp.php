@@ -2,23 +2,25 @@
 session_start();
 include "db.php";
 
+<<<<<<< Updated upstream
 if (isset($_SESSION['user_id'])) {
     header("Location: dashboard.php");
     exit();
 }
 =======
-
+<<<<<<< Updated upstream
 if (isset($_SESSION['user_id'])) { header("Location: dashboard.php"); exit(); }
 =======
 if (isset($_SESSION["user_id"])) {
     header("Location: dashboard.php");
     exit();
 }
-
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 
 $error = "";
 $success = "";
-
+<<<<<<< Updated upstream
 $email   = $_SESSION['otp_email'] ?? $_GET['email'] ?? '';
 
 if (empty($email)) {
@@ -100,7 +102,7 @@ if (isset($_POST['verify_otp'])) {
 
                 // Insert into users
                 $ins = mysqli_prepare($conn,
-
+<<<<<<< Updated upstream
                     "INSERT INTO users (username, email, password, user_type, profile_photo, is_verified)
                      VALUES (?,?,?,?,?,1)"
                 );
@@ -108,14 +110,14 @@ if (isset($_POST['verify_otp'])) {
                     $pdata['username'], $pdata['email'], $pdata['password_hash'],
                     $pdata['user_type'], $pdata['profile_photo']
                 );
-
+=======
                     "INSERT INTO users (username,email,password,user_type,profile_photo,is_verified,kyc_status,kyc_image)
                      VALUES (?,?,?,?,?,1,?,?)");
                 mysqli_stmt_bind_param($ins,"sssssss",
                     $pdata['username'],$pdata['email'],$pdata['password_hash'],
                     $pdata['user_type'],$pdata['profile_photo'],
                     $kyc_status,$kyc_image);
-
+=======
 $email = $_SESSION["otp_email"] ?? ($_GET["email"] ?? "");
 
 if (empty($email)) {
@@ -223,29 +225,30 @@ if (isset($_POST["verify_otp"])) {
                     $pdata["user_type"],
                     $pdata["profile_photo"],
                 );
-
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 
                 if (mysqli_stmt_execute($ins)) {
                     $new_user_id = mysqli_insert_id($conn);
 
-
+<<<<<<< Updated upstream
                     if ($pdata['user_type'] === 'student') {
                         $s = mysqli_prepare($conn,
                             "INSERT INTO student_profiles (user_id, matric_number) VALUES (?,?)"
                         );
                         mysqli_stmt_bind_param($s, "is", $new_user_id, $extra['matric_number']);
-
-
+=======
+<<<<<<< Updated upstream
                     if ($pdata['user_type']==='student') {
                         $s=mysqli_prepare($conn,"INSERT INTO student_profiles (user_id,matric_number) VALUES (?,?)");
                         mysqli_stmt_bind_param($s,"is",$new_user_id,$extra['matric_number']);
-
+>>>>>>> Stashed changes
                         mysqli_stmt_execute($s);
 
                     } elseif ($pdata['user_type'] === 'graduate') {
                         $g = mysqli_prepare($conn,
                             "INSERT INTO graduate_profiles
-
+<<<<<<< Updated upstream
                              (user_id, job_status, company, job_title, salary_range,
                               education_level, field_of_study, graduation_year,
                               linkedin_url, bio, skills)
@@ -264,7 +267,7 @@ if (isset($_POST["verify_otp"])) {
                             $extra['linkedin_url']    ?? '',
                             $extra['bio']             ?? '',
                             $extra['skills']          ?? ''
-
+=======
                              (user_id,job_status,company,job_title,salary_range,education_level,field_of_study,graduation_year,linkedin_url,bio,skills)
                              VALUES (?,?,?,?,?,?,?,?,?,?,?)");
                         $gy=!empty($extra['graduation_year'])?$extra['graduation_year']:null;
@@ -280,7 +283,7 @@ if (isset($_POST["verify_otp"])) {
                         $skills = $extra['skills'] ?? '';
 
                         mysqli_stmt_bind_param($g,"issssssssss",
-
+=======
                     if ($pdata["user_type"] === "student") {
                         $s = mysqli_prepare(
                             $conn,
@@ -323,7 +326,7 @@ if (isset($_POST["verify_otp"])) {
                         mysqli_stmt_bind_param(
                             $g,
                             "issssssssss",
-
+>>>>>>> Stashed changes
                             $new_user_id,
                             $job_status,
                             $company,
@@ -331,23 +334,24 @@ if (isset($_POST["verify_otp"])) {
                             $salary_range,
                             $education_level,
                             $field_of_study,
-
+<<<<<<< Updated upstream
                             $gy,
                             $linkedin_url,
                             $bio,
                             $skills
-
+=======
                             $graduation_year,
                             $linkedin_url,
                             $bio,
                             $skills,
-
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
                         );
 
                         mysqli_stmt_execute($g);
                     }
 
-
+<<<<<<< Updated upstream
                     // Auto-join default subs
                     $subs = mysqli_query($conn, "SELECT id FROM subcommunities LIMIT 3");
                     while ($sub = mysqli_fetch_assoc($subs)) {
@@ -355,13 +359,14 @@ if (isset($_POST["verify_otp"])) {
                             "INSERT IGNORE INTO sub_memberships (user_id, sub_id) VALUES (?,?)"
                         );
                         mysqli_stmt_bind_param($jn, "ii", $new_user_id, $sub['id']);
-
+=======
+<<<<<<< Updated upstream
                     //auto join some subs for demo
                     $subs=mysqli_query($conn,"SELECT id FROM subcommunities LIMIT 3");
                     while($sub=mysqli_fetch_assoc($subs)){
                         $jn=mysqli_prepare($conn,"INSERT IGNORE INTO sub_memberships (user_id,sub_id) VALUES (?,?)");
                         mysqli_stmt_bind_param($jn,"ii",$new_user_id,$sub['id']);
-
+>>>>>>> Stashed changes
                         mysqli_stmt_execute($jn);
                     }
 
@@ -372,14 +377,14 @@ if (isset($_POST["verify_otp"])) {
                     mysqli_stmt_bind_param($del, "s", $email);
                     mysqli_stmt_execute($del);
 
-
+<<<<<<< Updated upstream
                     unset($_SESSION['otp_email'], $_SESSION['reg_username'],
                           $_SESSION['reg_email'], $_SESSION['reg_pass'], $_SESSION['reg_auto_type']);
-
+=======
                     unset($_SESSION['otp_email'],$_SESSION['reg_username'],
                           $_SESSION['reg_email'],$_SESSION['reg_pass'],$_SESSION['reg_auto_type'],
                           $_SESSION['reg_kyc_pending']);
-
+=======
                     // Auto-join default subs
                     $subs = mysqli_query(
                         $conn,
@@ -414,7 +419,8 @@ if (isset($_POST["verify_otp"])) {
                         $_SESSION["reg_pass"],
                         $_SESSION["reg_auto_type"],
                     );
-
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 
                     header("Location: login.php?registered=1");
                     exit();
@@ -430,14 +436,15 @@ if (isset($_POST["verify_otp"])) {
     }
 }
 
-
+<<<<<<< Updated upstream
 $masked_email = preg_replace('/(?<=.{2}).(?=.*@)/', '*', $email);
-
-
+=======
+<<<<<<< Updated upstream
 $masked = preg_replace('/(?<=.{2}).(?=.*@)/','*',$email);
-
+=======
 $masked_email = preg_replace("/(?<=.{2}).(?=.*@)/", "*", $email);
-
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -500,7 +507,7 @@ $masked_email = preg_replace("/(?<=.{2}).(?=.*@)/", "*", $email);
   <div class="auth-page">
     <div class="auth-brand">ScholarSpace</div>
 
-
+<<<<<<< Updated upstream
     <div class="auth-card" style="max-width:400px; text-align:center;">
       <div style="font-size:48px; margin-bottom:12px;">📬</div>
       <h2 class="auth-card-title">Check Your Email</h2>
@@ -508,7 +515,8 @@ $masked_email = preg_replace("/(?<=.{2}).(?=.*@)/", "*", $email);
         We sent a 6-digit code to<br>
         <strong style="color:var(--text-main);"><?php echo htmlspecialchars($masked_email); ?></strong>
       </p>
-
+=======
+<<<<<<< Updated upstream
     <form method="POST" action="verify_otp.php" id="otpForm">
       <input type="hidden" name="verify_otp" value="1">
       <div class="otp-inputs">
@@ -520,7 +528,7 @@ $masked_email = preg_replace("/(?<=.{2}).(?=.*@)/", "*", $email);
       <div class="countdown" id="countdown">Code expires in <span id="timer">10:00</span></div>
       <button type="submit" class="btn btn-primary">Verify →</button>
     </form>
-
+>>>>>>> Stashed changes
 
       <?php if ($error):   ?><div class="error-msg"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
       <?php if ($success): ?><div class="success-msg"><?php echo htmlspecialchars($success); ?></div><?php endif; ?>
@@ -548,11 +556,12 @@ $masked_email = preg_replace("/(?<=.{2}).(?=.*@)/", "*", $email);
 
         <button type="submit" class="btn btn-primary">Verify →</button>
       </form>
-
+<<<<<<< Updated upstream
+=======
     </div>
     <div class="auth-links" style="margin-top:16px;">
       <a href="register.php">← Back to registration</a>
-
+=======
     <div class="auth-card" style="max-width:400px; text-align:center;">
       <div style="font-size:48px; margin-bottom:12px;">📬</div>
       <h2 class="auth-card-title">Check Your Email</h2>
@@ -597,14 +606,18 @@ $masked_email = preg_replace("/(?<=.{2}).(?=.*@)/", "*", $email);
 
         <button type="submit" class="btn btn-primary">Verify →</button>
       </form>
-
+>>>>>>> Stashed changes
 
       <div style="margin-top:16px;">
         <form method="POST" action="verify_otp.php" style="display:inline;">
           <input type="hidden" name="resend_otp" value="1">
+<<<<<<< Updated upstream
+          <input type="hidden" name="email_hidden" value="<?php echo htmlspecialchars($email); ?>">
+=======
           <input type="hidden" name="email_hidden" value="<?php echo htmlspecialchars(
               $email,
           ); ?>">
+>>>>>>> Stashed changes
           <button type="submit" class="resend-link" id="resendBtn" disabled>Resend code</button>
         </form>
       </div>
@@ -612,7 +625,11 @@ $masked_email = preg_replace("/(?<=.{2}).(?=.*@)/", "*", $email);
       <div class="auth-links" style="margin-top:16px;">
         <a href="register.php">← Back to registration</a>
       </div>
-</div>
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
+    </div>
   </div>
 
 <script>
