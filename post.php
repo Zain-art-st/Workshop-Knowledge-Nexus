@@ -428,6 +428,13 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         .post-right {
             flex-shrink: 0;
         }
+
+        .report-modal, .delete-modal, .deleteSuccess-modal {display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 9999; justify-content: center; align-items: center;}
+        .report-content, .delete-content, .deleteSuccess-content {width: 600px; max-width: 90%; background: #2d2d2d; border-radius: 30px; padding: 40px; color: white;}
+        .report-content h2, .delete-content h2, .deleteSuccess-content h2 {text-align: center; margin-bottom: 10px;}
+        .report-content p, .delete-content p, .deleteSuccess-content p {text-align: center; margin-bottom: 30px;}
+        .report-option {display: flex; align-items:center; gap: 15px; margin-bottom: 20px; font-size: 18px; cursor: pointer;}
+        .report-option input[type="radio"] {width: 25px; height: 25px;}
         
     </style>
 </head>
@@ -761,12 +768,85 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 
     <div id="reportCommentModal" class="report-modal">
         <div class="report-content">
-            <h2>Report Comment</h2>
-            <p>Why are you reporting this comment?</p>
-            <input type="hidden" id="reportCommentId">
-            <textarea id="reportReason" placeholder="Enter reason..." style="width: 100%; min-height: 120px; padding: 12px; border-radius: 10px;"></textarea>
-            <button class="confirm-btn" onclick="submitCommentReport()">Submit</button>
-            <button class="confirm-btn" onclick="closeCommentReportModal()">Cancel</button>
+           <span class="close-btn" onclick="closeCommentReportModal()">&times;</span>
+
+            <h2>REPORT</h2>
+            <p>Tell us what's going on</p>
+
+            <form id="reportCommentForm">
+                <input type="hidden" id="reportCommentId" name="comment_id">
+
+                <label class="report-option">
+                    <input type="radio" name="comment_reason" value="Explicit content">
+                    Explicit content
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="comment_reason" value="Harassment and bullying">
+                    Harassment and bullying
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="comment_reason" value="Harmful or dangerous acts">
+                    Harmful or dangerous acts
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="comment_reason" value="Self harm">
+                    Suicidal, self harm or disorders that caused harm
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="comment_reason" value="Fake news">
+                    Fake news
+                </label>
+
+                <button type="button" class="confirm-btn" onclick="submitCommentReport()">
+                    Confirm
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="reportModal" class="report-modal">
+        <div class="report-content">
+            <span class="close-btn" onclick="closeReportModal()">&times;</span>
+
+            <h2>REPORT</h2>
+            <p>Tell us what's going on</p>
+
+            <form id="reportForm">
+                <input type="hidden" id="reportPostId" name="post_id">
+
+                <label class="report-option">
+                    <input type="radio" name="reason" value="Explicit content">
+                    Explicit content
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="reason" value="Harassment and bullying">
+                    Harassment and bullying
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="reason" value="Harmful or dangerous acts">
+                    Harmful or dangerous acts
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="reason" value="Self harm">
+                    Suicidal, self harm or disorders that caused harm
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="reason" value="Fake news">
+                    Fake news
+                </label>
+
+                <button type="button" class="confirm-btn" onclick="submitReport()">
+                    Confirm
+                </button>
+            </form>
         </div>
     </div>
 
@@ -981,13 +1061,13 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         function closeCommentReportModal()
         {
             document.getElementById("reportCommentModal").style.display = "none";
-            document.getElementById("reportReason").value = "";
+            document.getElementById("reportCommentForm").reset();
         }
 
         function submitCommentReport()
         {
             const commentId = document.getElementById("reportCommentId").value;
-            const reason = document.getElementById("reportReason").value;
+            const selected = document.querySelector('input[name="comment_reason"]:checked');
             
             fetch("report_comment.php", {
                 method: "POST",
@@ -997,18 +1077,19 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 
                 body:
                     "comment_id=" + encodeURIComponent(commentId) +
-                    "&reason=" + encodeURIComponent(reason)
+                    "&reason=" + encodeURIComponent(selected.value)
             })
             .then(response => response.json())
             .then(data => {
+
+                closeCommentReportModal();
+
                 if(data.success)
                 {
-                    closeCommentReportModal();
                     showSnackbar(data.message);
                 }
                 else
                 {
-                    closeCommentReportModal();
                     showSnackbar(data.message);
                 }
             })
@@ -1173,6 +1254,80 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                 menu.style.display = "none";
             });
         }
+
+
+        function openReportModal(postId)
+        {
+            document.getElementById("reportPostId").value = postId;
+            document.getElementById("reportModal").style.display = "flex";
+        }
+
+        function closeReportModal()
+        {
+            document.getElementById("reportModal").style.display = "none";
+        }
+
+        window.onclick = function(event)
+        {
+            const modal = document.getElementById("reportModal");
+            const successModal = document.getElementById("deleteSuccessModal");
+
+            if(event.target === modal)
+            {
+                closeReportModal();
+            }
+
+            if(event.target === SuccessModal)
+            {
+                closeDeleteSuccessModal();
+            }
+        }
+
+        function submitReport()
+        {
+            const postId = document.getElementById("reportPostId").value;
+
+            const reason = document.querySelector('input[name="reason"]:checked');
+
+            if(!reason)
+            {
+                alert("Please select a reason");
+                return;
+            }
+
+            fetch("report_post.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type":
+                    "application/x-www-form-urlencoded"
+                },
+                body:
+                    "post_id=" + encodeURIComponent(postId) +
+                    "&reason=" + encodeURIComponent(reason.value)
+            })
+            .then(response => response.text())
+            .then(data => {
+                data = data.trim();
+                
+                if(data === "success")
+                {
+                    alert("Report submitted");
+                    closeReportModal();
+                }
+                else if(data === "already_reported")
+                {
+                    alert("You have already reported this post");
+                }
+                else
+                {
+                    alert("Failed to submit report");
+                }
+            })
+            .catch(error => {
+                console.error(error);
+            });
+        }
+
     </script>
 </body>
 </html>
