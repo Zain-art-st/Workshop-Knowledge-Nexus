@@ -1,6 +1,7 @@
 <?php
 session_start();
 include "db.php";
+include_once "mailer.php";
 
 $error = "";
 $success = "";
@@ -11,13 +12,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_otp'])) {
     if (empty($email)) {
         $error = "Please enter your email address.";
     } else {
-        //Check if email exists
-        $stmt = mysqli_prepare($conn, "SELECT id FROM users WHERE email = ? LIMIT 1");
+        $stmt = mysqli_prepare($conn, "SELECT id, username FROM users WHERE email = ? LIMIT 1");
         mysqli_stmt_bind_param($stmt, "s", $email);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
 
-        if (mysqli_fetch_assoc($result)) {
+        if ($user = mysqli_fetch_assoc($result)) {
+            $username = $user['username'];
+            
             //Generate OTP
             $otp = sprintf("%06d", mt_rand(1, 999999));
             
@@ -26,18 +28,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_otp'])) {
             mysqli_stmt_bind_param($update_stmt, "ss", $otp, $email);
             
             if (mysqli_stmt_execute($update_stmt)) {
-                $subject = "ScholarSpace - Password Reset OTP";
-                $message = "Your password reset OTP is: $otp\n\nThis OTP will expire in 15 minutes.";
-                $headers = "From: noreply@scholarspace.com";
+              
+                $email_sent = sendOTPEmail($email, $username, $otp); 
                 
-                @mail($email, $subject, $message, $headers); // Suppress errors(can check database for otp)
+                if ($email_sent) {
+                    header("Location: reset_password.php?email=" . urlencode($email));
+                    exit();
+                } else {
+                    $error = "Failed to send OTP to your email. Check mailer settings.";
+                }
                 
-                header("Location: reset_password.php?email=" . urlencode($email));
-                exit();
             } else {
                 $error = "Failed to generate OTP. Please try again.";
             }
-        } else {//message for security
+        } else {
+            //message for security
             $error = "If that email exists in our system, an OTP has been sent.";
         }
     }
