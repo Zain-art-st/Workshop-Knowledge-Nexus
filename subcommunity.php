@@ -147,7 +147,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     <link rel="stylesheet" href="styles.css">
     <style>
         .profile-picture-and-name {display: flex; align-items: center; gap: 10px}
-        .Three-Vertical-Dots {font-size: 30px; background: transparent; color: white; border: none}
         .sub-banner-wrap { position: relative; height: 200px; background: linear-gradient(135deg, rgba(79,142,247,.2), rgba(192,109,232,.15)); border-radius: 16px; margin-bottom: 20px; overflow: hidden; }
         .sub-banner-wrap::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, var(--accent), var(--accent2)); opacity: 0.1; }
         .sub-info-card { display: flex; gap: 20px; align-items: flex-end; padding: 20px; position: relative; z-index: 1; }
@@ -161,25 +160,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         .stat-item span { font-size: 12px; color: var(--text-muted); }
         .join-btn-wrap { display: flex; gap: 8px; flex-direction: column;align-items: flex-end }
         .join-btn-wrap form { display: contents; }
-        .comment-thread { margin-left: 20px; border-left: 2px solid var(--card-border); padding-left: 16px; }
-        .comment { display: flex; gap: 12px; margin-bottom: 12px; }
         .vote-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 16px; padding: 4px; transition: color 0.2s; }
-        .vote-btn:hover { color: var(--accent); }
         .vote-btn.upvote:hover { color: var(--success); }
         .vote-btn.downvote:hover { color: var(--danger); }
         .vote-count { font-size: 12px; font-weight: 600; min-width: 30px; text-align: center; }
-        .comment-body { flex: 1; }
-        .comment-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
-        .comment-author { color: var(--accent); font-weight: 600; text-decoration: none; }
-        .comment-author:hover { text-decoration: underline; }
-        .comment-text { color: var(--text-main); font-size: 14px; line-height: 1.5; margin-bottom: 8px; }
+        .post-author { color: var(--accent); font-weight: 600; text-decoration: none; }
+        .post-author:hover { text-decoration: underline; }
         .comment-actions { display: flex; gap: 8px; }
         .action-btn { background: rgba(255,255,255,.06); border: none; border-radius: 20px; padding: 4px 10px; font-size: 12px; color: var(--text-muted); cursor: pointer; font-family: var(--font-body); transition: background 0.2s, color 0.2s; }
         .action-btn:hover { background: rgba(79,142,247,.15); color: var(--accent); }
-        .create-post-box { margin-bottom: 20px; }
-        .create-post-input { width: 100%; padding: 12px; background: rgba(255,255,255,.07); border: 1px solid var(--card-border); border-radius: 10px; color: var(--text-main); font-family: var(--font-body); font-size: 14px; outline: none; transition: border-color 0.2s; }
-        .create-post-input:focus { border-color: var(--accent); }
-        .replies { margin-left: 20px; border-left: 2px solid var(--card-border); padding-left: 16px; }
         .post-preview { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--card-border); }
         .post-preview:last-child { border-bottom: none; }
         .post-info {display: flex; flex: 1; justify-content: space-between;}
@@ -192,10 +181,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         .dropdown-menu {display: none;position: absolute; top: 100%; right: 0; min-width: 150px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,.2); z-index: 1000; background:#1e1e35; border:1px solid var(--card-border);}
         .dropdown-menu a {display: block; padding: 12px 16px; color:var(--text-main); text-decoration: none;}
         .dropdown-menu a:hover {background:rgba(255,255,255,.07); border-radius: 8px;}
-        .report-modal, .delete-modal, .deleteSuccess-modal {display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 9999; justify-content: center; align-items: center;}
-        .report-content, .delete-content, .deleteSuccess-content {width: 600px; max-width: 90%; background: #2d2d2d; border-radius: 30px; padding: 40px; color: white;}
-        .report-content h2, .delete-content h2, .deleteSuccess-content h2 {text-align: center; margin-bottom: 10px;}
-        .report-content p, .delete-content p, .deleteSuccess-content p {text-align: center; margin-bottom: 30px;}
+        .report-modal, .delete-modal {display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 9999; justify-content: center; align-items: center;}
+        .report-content, .delete-content {width: 600px; max-width: 90%; background: #2d2d2d; border-radius: 30px; padding: 40px; color: white;}
+        .report-content h2, .delete-content h2 {text-align: center; margin-bottom: 10px;}
+        .report-content p, .delete-content p {text-align: center; margin-bottom: 30px;}
         .report-option {display: flex; align-items:center; gap: 15px; margin-bottom: 20px; font-size: 18px; cursor: pointer;}
         .report-option input[type="radio"] {width: 25px; height: 25px;}
         .confirm-btn {width: 100%; padding: 15px; border: none; border-radius: 30px; margin-top: 20px; font-size: 18px; font-weight: bold; cursor: pointer;}
@@ -203,6 +192,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         .post-link {color: var(--accent); text-decoration: none; font-weight: 500; display: inline-block; margin: 10px 0; transition: 0.2s;}
         .post-link:hover {color: #6fa8ff; text-decoration: underline;}
         .post-link:visited {color: #b78cff;}
+
+        #snackbar {
+            visibility: hidden;
+            position: fixed;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            min-width: 280px;
+            max-width: 500px;
+            background: #2d2d2d;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 14px;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+            z-index: 99999;
+            opacity: 0;
+            transition: opacity .4s ease, bottom .4s ease;
+            font-size: 14px;
+        }
+
+        #snackbar.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
     </style>
 </head>
 <body>
@@ -260,7 +275,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                     <span>Members</span>
                                 </div>
                                 <div class="stat-item">
-                                    <strong><?php echo count($posts); ?></strong>
+                                    <strong id="post-count-header"><?php echo count($posts); ?></strong>
                                     <span>Posts</span>
                                 </div>
                             </div>
@@ -269,7 +284,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                             <?php if (!isset($_SESSION['user_id'])): ?>
                                 <a href="login.php" class="btn btn-primary" style="width: 120px; padding: 8px; text-decoration: none;">Join</a>
                             <?php elseif ($is_member): ?>
-                                <form method="POST" style="display: contents;">
+                                <form method="POST">
                                     <input type="hidden" name="action" value="leave">
                                     <button type="submit" class="btn btn-secondary" style="width: 120px; padding: 8px;">Leave</button>
                                 </form>
@@ -309,7 +324,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                         <div class="post-meta">
                                             <div class="profile-picture-and-name">
                                                 <img src="uploads/profiles/<?php echo htmlspecialchars($post['profile_photo']);?>" alt="Profile" class="profile-avatar">
-                                                <a href="profile.php?user=<?php echo urlencode($post['username']); ?>" class="comment-author">
+                                                <a href="profile.php?user=<?php echo urlencode($post['username']); ?>" class="post-author">
                                                 <?php echo htmlspecialchars($post['username']); ?>
                                                 </a>• 
                                             
@@ -375,8 +390,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 </div>
             </main>
 
-            <!-- Left Sidebar (Community Info) -->
-            <aside class="left-sidebar">
+            <!-- Right Sidebar (Community Info) -->
+            <aside class="right-sidebar">
                 <div class="card" style="overflow: hidden;">
                     <div style="padding: 16px;">
                         <h3 style="font-family: var(--font-display); font-size: 13px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.8px; margin-bottom: 12px;">About <?php echo htmlspecialchars($subcommunity['name']); ?></h3>
@@ -393,7 +408,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                                 <span style="font-size: 11px; color: var(--text-muted);">Members</span>
                             </div>
                             <div>
-                                <strong style="display: block; font-size: 16px; margin-bottom: 4px;">
+                                <strong id="post-count-sidebar" style="display: block; font-size: 16px; margin-bottom: 4px;">
                                     <?php echo count($posts); ?>
                                 </strong>
                                 <span style="font-size: 11px; color: var(--text-muted);">Posts</span>
@@ -484,15 +499,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         </div>
     </div>
 
-    <div id="deleteSuccessModal" class="deleteSuccess-modal">
-        <div class="deleteSuccess-content">
-            <h2>Post Deleted</h2>
-            <p>Your post has been successfully deleted.</p>
-            <button class="confirm-btn" onclick="closeDeleteSuccessModal()">
-                OK
-            </button>
-        </div>
-    </div>
+    <div id="snackbar"></div>
 
     <script>
         function vote(postId, voteType) {
@@ -525,7 +532,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 }
                 else
                 {
-                    alert(data.message);
+                    showSnackbar(data.message);
                     return
                 }
             })
@@ -548,16 +555,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             // Toggle current menu
             menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-
-            // Close menu when clicking elsewhere
-            document.addEventListener('click', function(e) {
-                if(!e.target.closest('.post-menu')) {
-                    document.querySelectorAll('.dropdown-menu').forEach(menu => {
-                        menu.style.display = 'none';
-                    });
-                }
-            });
         }
+
+        // Close menu when clicking elsewhere
+        document.addEventListener('click', function(e) 
+        {
+            if(!e.target.closest('.post-menu')) 
+            {
+                document.querySelectorAll('.dropdown-menu').forEach(menu => {
+                menu.style.display = 'none';
+                });
+            }
+        });
 
         function openReportModal(postId)
         {
@@ -572,17 +581,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         window.onclick = function(event)
         {
-            const modal = document.getElementById("reportModal");
-            const successModal = document.getElementById("deleteSuccessModal");
-
-            if(event.target === modal)
+            if(event.target.id==="reportModal")
             {
                 closeReportModal();
             }
 
-            if(event.target === SuccessModal)
+            if(event.target.id==="deleteModal")
             {
-                closeDeleteSuccessModal();
+                closeDeleteModal();
             }
         }
 
@@ -594,7 +600,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
             if(!reason)
             {
-                alert("Please select a reason");
+                showSnackbar("Please select a reason");
                 return;
             }
 
@@ -614,16 +620,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 
                 if(data === "success")
                 {
-                    alert("Report submitted");
+                    showSnackbar("Report submitted");
                     closeReportModal();
                 }
                 else if(data === "already_reported")
                 {
-                    alert("You have already reported this post");
+                    showSnackbar("You already reported this post");
                 }
                 else
                 {
-                    alert("Failed to submit report");
+                    showSnackbar("Failed to submit report");
                 }
             })
             .catch(error => {
@@ -666,13 +672,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     if(post)
                     {
                         post.remove();
+
+                        const headerCount = document.getElementById("post-count-header");
+                        const sidebarCount = document.getElementById("post-count-sidebar");
+
+                        if(headerCount)
+                        {
+                            headerCount.textContent =
+                                Math.max(0, parseInt(headerCount.textContent) - 1);
+                        }
+
+                        if(sidebarCount)
+                        {
+                            sidebarCount.textContent =
+                                Math.max(0, parseInt(sidebarCount.textContent) - 1);
+                        }
                     }
 
-                    openDeleteSuccessModal();
+                    showSnackbar("Post deleted successfully");
                 }
                 else
                 {
-                    alert(data);
+                    showSnackbar(data);
                 }
             })
             .catch(error => {
@@ -680,76 +701,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             });
         }
 
-        function openDeleteSuccessModal()
+        function showSnackbar(message)
         {
-            document.getElementById("deleteSuccessModal").style.display = "flex";
-        }
-
-        function closeDeleteSuccessModal()
-        {
-            document.getElementById("deleteSuccessModal").style.display = "none";
-        }
-
-        function startEditPost(postId, oldTitle, oldContent)
-        {
-            const card = document.querySelector(`[data-post-id="${postId}"]`);
-            const title = card.querySelector(".post-title");
-            const content = card.querySelector(".post-content");
-            
-            title.innerHTML =
-            `
-            <input id="edit-title" value="${oldTitle}"
-            style="width: 100%; padding: 10px; border-radius: 10px;">
-            `;
-
-            content.innerHTML =
-            `
-            <textarea id="edit-content" style="width: 100%; min-height: 120px;
-            padding: 12px; border-radius: 12px;">${oldContent}</textarea>
-
-            <div style="margin-top: 10px; display: flex;
-            gap: 10px;">
-
-            <button onclick="savePostEdit(${postId})">
-            Save
-            </button>
-
-            <button onclick="location.reload()">
-            Cancel
-            </button>
-
-            </div>
-            `;
-        }
-        
-        function savePostEdit(postId)
-        {
-            const title = document.getElementById("edit-title").value;
-            const content = document.getElementById("edit-content").value;
-
-            fetch("edit_post.php", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded"
-                },
-
-                body:
-                    "post_id=" + postId +
-                    "&title=" + encodeURIComponent(title) +
-                    "&content=" + encodeURIComponent(content)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if(data.success)
-                {
-                    showSnackbar("Post updated");
-                    location.reload();
-                }
-                else
-                {
-                    showSnackbar(data.message);
-                }
-            });
+            const snackbar = document.getElementById("snackbar");
+            snackbar.textContent = message;
+            snackbar.classList.add("show");
+            setTimeout(() => {
+                snackbar.classList.remove("show");
+            }, 5000);
         }
 
         // Unique key based on the page URL path to handle multiple pages

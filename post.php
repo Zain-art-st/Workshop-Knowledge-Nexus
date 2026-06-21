@@ -850,6 +850,30 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         </div>
     </div>
 
+    <div id="deleteModal" class="delete-modal">
+        <div class="delete-content">
+            <span class="close-btn" onclick="closeDeleteModal()">
+                &times;
+            </span>
+
+            <h2 style="color:red;">Warning</h2>
+
+            <p>Are you sure you want to delete this post?</p>
+
+            <input type="hidden" id="deletePostId">
+
+            <div style="display: flex; gap: 15px; margin-top: 25px;">
+                <button class="confirm-btn" style="background:#555;" onclick="closeDeleteModal()">
+                    No
+                </button>
+
+                <button class="confirm-btn" style="background:#d9534f;" onclick="deletePost()">
+                    Yes
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="snackbar"></div>
 
     <script>
@@ -1325,6 +1349,55 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
             })
             .catch(error => {
                 console.error(error);
+            });
+        }
+
+        function openDeleteModal(postId)
+        {
+            document.getElementById("deletePostId").value = postId;
+            document.getElementById("deleteModal").style.display = "flex";
+        }
+
+        function closeDeleteModal()
+        {
+            document.getElementById("deleteModal").style.display = "none";
+        }
+
+        function deletePost()
+        {
+            const postId = document.getElementById("deletePostId").value;
+
+            fetch("delete_post.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body:
+                    "post_id=" + encodeURIComponent(postId)
+            })
+            .then(response=>response.text())
+            .then(data => {
+                
+                if(data.trim() === "success")
+                {
+                    closeDeleteModal();
+
+                    showSnackbar("Post deleted successfully");
+
+                    setTimeout(() => {
+                    window.location.href =
+                        "subcommunity.php?id=<?php echo $post['sub_id']; ?>";
+                        }, 1000);
+
+                }
+                else
+                {
+                    alert(data);
+                }
+            })
+            .catch(error => {
+                console.error(error);
+                showSnackbar("Failed to delete post");
             });
         }
 
