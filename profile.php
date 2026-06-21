@@ -31,6 +31,19 @@ $posts = mysqli_fetch_all($posts_res, MYSQLI_ASSOC);
 // Post count
 $post_count = count($posts);
 
+// Fetch communities where the current logged-in user is a moderator
+$my_subs = [];
+if (!$is_own) {
+    $my_subs_res = mysqli_query($conn,
+        "SELECT s.id, s.name FROM subcommunities s
+         JOIN sub_memberships sm ON s.id=sm.sub_id
+         WHERE sm.user_id=$my_id AND sm.role='moderator'"
+    );
+    if ($my_subs_res) {
+        $my_subs = mysqli_fetch_all($my_subs_res, MYSQLI_ASSOC);
+    }
+}
+
 function ava($photo,$name,$size=40){
     $init=strtoupper(substr($name,0,1));$fs=round($size*.45);
     if($photo&&$photo!=='default.png'&&file_exists(__DIR__.'/'.$photo))
@@ -184,6 +197,18 @@ $skills_arr = !empty($graduate['skills']) ? array_map('trim', explode(',', $grad
                     onmouseout="this.style.background='none'">
               🚩 Report this user
             </button>
+            
+            <?php if (!empty($my_subs)): ?>
+            <button onclick="openModModal()"
+                    style="display:flex;align-items:center;gap:8px;width:100%;
+                           padding:10px 16px;font-size:13px;color:var(--warning);
+                           background:none;border:none;cursor:pointer;text-align:left;
+                           font-family:var(--font-body);transition:background .15s;"
+                    onmouseover="this.style.background='rgba(245,158,11,.08)'"
+                    onmouseout="this.style.background='none'">
+              👑 Add as Moderator
+            </button>
+            <?php endif; ?>
           </div>
         </div>
         <?php endif; ?>
@@ -354,6 +379,26 @@ $skills_arr = !empty($graduate['skills']) ? array_map('trim', explode(',', $grad
   </div>
 </div>
 
+<div id="addModModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:2000; align-items:center; justify-content:center;">
+  <div style="background:#1e1e35; border:1px solid var(--card-border); border-radius:16px; padding:28px; max-width:420px; width:90%;">
+    <h3 style="font-family:var(--font-display); font-size:18px; font-weight:700; margin-bottom:8px; color:var(--text-main);">👑 Add as Moderator</h3>
+    <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Select a community to make <strong><?php echo htmlspecialchars($usr['username']); ?></strong> a moderator.</p>
+    
+    <form id="addModForm">
+      <input type="hidden" id="targetUserId" value="<?php echo $view_id; ?>">
+      <select id="modSubSelect" style="width:100%; padding:10px; background:rgba(255,255,255,.05); border:1px solid var(--card-border); color:white; border-radius:8px; margin-bottom:16px; font-family:var(--font-body); outline:none;">
+        <?php foreach($my_subs as $sub): ?>
+        <option value="<?php echo $sub['id']; ?>"><?php echo htmlspecialchars($sub['name']); ?></option>
+        <?php endforeach; ?>
+      </select>
+      <div style="display:flex;gap:10px;">
+        <button type="button" onclick="submitAddMod()" style="flex:1; padding:10px; border-radius:8px; border:none; cursor:pointer; background:var(--accent); color:white; font-family:var(--font-body); font-weight:600;">Confirm</button>
+        <button type="button" onclick="closeModModal()" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--card-border); cursor:pointer; background:rgba(255,255,255,.08); color:var(--text-muted); font-family:var(--font-body); font-weight:600;">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 function switchTab(name, btn) {
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
@@ -361,6 +406,7 @@ function switchTab(name, btn) {
   document.getElementById('tab-'+name).classList.add('active');
   btn.classList.add('active');
 }
+
 function toggleReportMenu() {
   const menu = document.getElementById('profileReportMenu');
   if (menu.style.display === 'none' || menu.style.display === '') {
@@ -378,10 +424,7 @@ document.addEventListener('click', function(event) {
     if (!menu.contains(event.target) && event.target !== btn) {
       menu.style.display = 'none';
     }
-  }
-});
-
-// Updated function
+  }});
 function reportUser(userId) {
   const reason = prompt("Please provide a reason for reporting this user:");
   
@@ -408,6 +451,40 @@ function reportUser(userId) {
   } else if (reason !== null) {
     alert("Report cancelled: A reason is required.");
   }
+}
+
+// Moderator Functions
+function openModModal() {
+  document.getElementById('addModModal').style.display = 'flex';
+  document.getElementById('profileReportMenu').style.display = 'none';
+}
+
+function closeModModal() {
+  document.getElementById('addModModal').style.display = 'none';
+}
+
+function submitAddMod() {
+  const userId = document.getElementById('targetUserId').value;
+  const subId = document.getElementById('modSubSelect').value;
+
+  fetch('make_moderator.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: userId, sub_id: subId })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if(data.status === 'success') {
+      alert("Success: User has been made a moderator!");
+      closeModModal();
+    } else {
+      alert("Error: " + data.message);
+    }
+  })
+  .catch(err => {
+    alert("An error occurred connecting to the server.");
+    console.error(err);
+  });
 }
 </script>
 </body>

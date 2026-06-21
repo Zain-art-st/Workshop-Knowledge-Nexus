@@ -21,24 +21,24 @@ if (isset($_POST['next'])) {
 }
 
 $topics = [
-    ['label' => 'Technology'],
-    ['label' => 'Study'],
-    ['label' => 'Gaming'],
-    ['label' => 'Creative'],
-    ['label' => 'Food'],
-    ['label' => 'Music'],
-    [ 'label' => 'Fitness'],
-    ['label' => 'Travel'],
-    ['label' => 'Humour'],
-    [ 'label' => 'Career'],
-    [ 'label' => 'Pets'],
-    [ 'label' => 'Science'],
-    [ 'label' => 'Lifestyle'],
-    [ 'label' => 'News'],
-    ['label' => 'Anime & Manga'],
-    ['label' => 'Rant'],
-    ['label' => 'Hobby'],
-    ['label' => 'Other']
+    ['label' => 'Technology', 'emoji' => '💻'],
+    ['label' => 'Study', 'emoji' => '📚'],
+    ['label' => 'Gaming', 'emoji' => '🎮'],
+    ['label' => 'Creative', 'emoji' => '🎨'],
+    ['label' => 'Food', 'emoji' => '🍕'],
+    ['label' => 'Music', 'emoji' => '🎵'],
+    ['label' => 'Fitness', 'emoji' => '🏋️'],
+    ['label' => 'Travel', 'emoji' => '✈️'],
+    ['label' => 'Humour', 'emoji' => '😂'],
+    ['label' => 'Career', 'emoji' => '💼'],
+    ['label' => 'Pets', 'emoji' => '🐾'],
+    ['label' => 'Science', 'emoji' => '🔬'],
+    ['label' => 'Lifestyle', 'emoji' => '🌱'],
+    ['label' => 'News', 'emoji' => '📰'],
+    ['label' => 'Anime & Manga', 'emoji' => '🎌'],
+    ['label' => 'Rant', 'emoji' => '🗣️'],
+    ['label' => 'Hobby', 'emoji' => '🧩'],
+    ['label' => 'Other', 'emoji' => '✨']
 ];
 ?>
 <!DOCTYPE html>
@@ -47,8 +47,16 @@ $topics = [
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Create a Community – ScholarSpace</title>
-  <link rel="stylesheet" href="styles.css">
   <style>
+    :root {
+      --font-display: system-ui, sans-serif;
+      --font-body: system-ui, sans-serif;
+      --text-muted: #888;
+      --accent: #4f8ef7;
+      --card-border: #333;
+      --text-main: #fff;
+    }
+    body { background: #111; color: var(--text-main); font-family: var(--font-body); margin: 0; }
     .create-page { max-width: 680px; margin: 0 auto; padding: 0 20px 60px; }
     .create-hero { padding: 40px 0 28px; text-align: center; }
     .create-hero h1 { font-family: var(--font-display); font-size: 28px; font-weight: 800; margin-bottom: 8px; }
@@ -80,6 +88,12 @@ $topics = [
     .topic-pill input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
     .topic-emoji { font-size: 20px; pointer-events: none; }
     .topic-label { pointer-events: none; }
+    
+    .navbar { display: flex; padding: 16px 20px; border-bottom: 1px solid var(--card-border); }
+    .nav-logo { color: #fff; text-decoration: none; font-weight: bold; }
+    .btn { padding: 12px 24px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; width: 100%; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .error-msg { color: #ff5555; text-align: center; margin-bottom: 16px; font-size: 14px; }
   </style>
 </head>
 <body>

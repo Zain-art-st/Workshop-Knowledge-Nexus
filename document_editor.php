@@ -2,6 +2,7 @@
 session_start();
 include "db.php";
 
+// Auth guard
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
@@ -14,7 +15,7 @@ $can_edit  = false;
 $is_owner  = false;
 $doc       = null;
 
-// Load 
+// Load document 
 if ($doc_id) {
     $doc = mysqli_fetch_assoc(mysqli_query($conn,
         "SELECT * FROM documents WHERE id = $doc_id LIMIT 1"));
@@ -30,7 +31,7 @@ if ($doc_id) {
     if ($is_owner) {
         $can_edit = true;
     } else {
-        // Check permission
+        // Check explicit share permission
         $share = mysqli_fetch_assoc(mysqli_query($conn,
             "SELECT permission FROM document_shares
              WHERE doc_id = $doc_id AND user_id = $user_id LIMIT 1"));
@@ -39,18 +40,17 @@ if ($doc_id) {
         } elseif (!empty($doc['share_mode']) && $doc['share_mode'] === 'edit') {
             $can_edit = true;
         } else {
-            // No access
+            // No access at all
             header("Location: dashboard.php?error=no_access");
             exit();
         }
     }
 } else {
-    // New document 
+    // New document
     $is_owner = true;
     $can_edit = true;
 }
 
-//share mode 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_share']) && $is_owner && $doc_id) {
     $mode = in_array($_POST['share_mode'], ['private','view','edit'])
           ? $_POST['share_mode'] : 'private';
@@ -96,6 +96,7 @@ if ($doc && !empty($doc['share_token'])) {
     $share_url = $base_url . 'view_doc.php?token=' . $doc['share_token'];
 }
 
+// Fetch joined subs 
 $subs_res = mysqli_query($conn,
     "SELECT s.id, s.name FROM subcommunities s
      JOIN sub_memberships sm ON s.id = sm.sub_id
@@ -119,6 +120,7 @@ if ($user_type === 'admin') {
   <style>
     html, body { height:100%; overflow:hidden; margin:0; padding:0; }
 
+    /* Full page layout */
     .doc-shell {
       display: flex;
       flex-direction: column;
@@ -195,6 +197,7 @@ if ($user_type === 'admin') {
     }
     .doc-panel p { font-size: 12px; color: #9b9ab0; margin-bottom: 10px; line-height: 1.6; }
 
+    /* Share mode buttons */
     .share-mode-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin-bottom: 14px; }
     .share-mode-btn {
       padding: 8px 4px; border-radius: 8px;
@@ -226,6 +229,7 @@ if ($user_type === 'admin') {
     }
     .share-link-row button:hover { text-decoration: underline; }
 
+    /* Post to sub panel */
     .post-sub-select {
       width: 100%; padding: 8px 12px; margin-bottom: 10px;
       background: rgba(255,255,255,.07);
@@ -235,7 +239,7 @@ if ($user_type === 'admin') {
     }
     .post-sub-select option { background: #1e1c35; }
 
-  .doc-editor-wrap {
+    .doc-editor-wrap {
       flex: 1;
       overflow: hidden;
       display: flex;
@@ -243,6 +247,7 @@ if ($user_type === 'admin') {
       background: #e8e8e8;
     }
 
+    /* Quill toolbar sticks to top */
     .doc-editor-wrap .ql-toolbar.ql-snow {
       background: #f5f5f5;
       border: none;
@@ -252,6 +257,7 @@ if ($user_type === 'admin') {
       z-index: 10;
       flex-shrink: 0;
     }
+
 
     .doc-page-scroll {
       flex: 1;
@@ -270,6 +276,7 @@ if ($user_type === 'admin') {
       overflow: hidden;
     }
 
+    /* Quill container */
     .doc-page .ql-container.ql-snow {
       border: none;
       font-size: 15px;
@@ -287,6 +294,7 @@ if ($user_type === 'admin') {
       left: 56px;
     }
 
+    /* View-only notice */
     .readonly-banner {
       background: rgba(245,158,11,.1);
       border-bottom: 1px solid rgba(245,158,11,.2);
@@ -297,7 +305,7 @@ if ($user_type === 'admin') {
       flex-shrink: 0;
     }
 
-
+    /* Posted notice */
     .posted-banner {
       background: rgba(62,207,142,.1);
       border-bottom: 1px solid rgba(62,207,142,.2);
@@ -322,6 +330,7 @@ if ($user_type === 'admin') {
 </div>
 
 <div class="doc-shell">
+
 
   <div class="doc-topbar">
     <a href="dashboard.php" class="doc-back">← Back</a>
@@ -348,7 +357,6 @@ if ($user_type === 'admin') {
 
     <button class="doc-btn doc-btn-close" onclick="closeDoc()" title="Close">✕</button>
   </div>
-
   <?php if ($is_owner && $doc_id): ?>
   <div class="doc-panel" id="sharePanel">
     <h4>🔗 Share Document</h4>
@@ -385,11 +393,11 @@ if ($user_type === 'admin') {
     <?php endif; ?>
   </div>
 
-
+ 
   <div class="doc-panel" id="postPanel">
     <h4>📤 Post to Community</h4>
     <?php if (!empty($doc['post_id'])): ?>
-    <p style="color:#3ecf8e;">Already posted to a community.</p>
+    <p style="color:#3ecf8e;">✅ Already posted to a community.</p>
     <a href="post.php?id=<?php echo $doc['post_id']; ?>"
        style="color:#4f8ef7;font-size:13px;text-decoration:none;">View post →</a>
     <?php else: ?>
@@ -410,8 +418,9 @@ if ($user_type === 'admin') {
   </div>
   <?php endif; ?>
 
+ 
   <?php if (!$can_edit): ?>
-  <div class="readonly-banner">You have view-only access to this document.</div>
+  <div class="readonly-banner">👁 You have view-only access to this document.</div>
   <?php endif; ?>
 
   <?php if (isset($_GET['posted'])): ?>
@@ -433,6 +442,7 @@ if ($user_type === 'admin') {
 
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <script>
+//Init Quill 
 const quill = new Quill('#quillEditor', {
   theme: 'snow',
   readOnly: <?php echo $can_edit ? 'false' : 'true'; ?>,
@@ -442,9 +452,10 @@ const quill = new Quill('#quillEditor', {
   }
 });
 
+// Full toolbar 
 <?php if ($can_edit): ?>
 quill.getModule('toolbar') && (() => {
-  // Quill default snow toolbar 
+  // Quill default snow toolbar is sufficient — override with richer one
 })();
 <?php endif; ?>
 
@@ -457,7 +468,6 @@ quill.on('text-change', () => {
 });
 
 setInterval(() => { if (isDirty) saveDoc(); }, 30000);
-
 function setStatus(type, text) {
   const el = document.getElementById('docStatus');
   el.textContent  = text;
@@ -468,7 +478,7 @@ function saveDoc() {
   if (!<?php echo $can_edit ? 'true' : 'false'; ?>) return;
   const title   = document.getElementById('docTitle').value.trim() || 'Untitled Document';
   const content = quill.root.innerHTML;
-  setStatus('', 'Saving…');
+  setStatus('', '⏳ Saving…');
 
   fetch('save_document.php', {
     method: 'POST',
@@ -480,19 +490,19 @@ function saveDoc() {
     if (data.success) {
       currentDocId = data.doc_id;
       isDirty      = false;
-      setStatus('saved', '✅Saved');
-      // Update URL without reload if new doc
+      setStatus('saved', '✅ Saved');
+      // Update URL without reload 
       if (!<?php echo $doc_id ?: 'false'; ?>) {
         history.replaceState(null, '', 'document_editor.php?id=' + data.doc_id);
       }
       setTimeout(() => { if (!isDirty) setStatus('', ''); }, 3000);
     } else {
-      setStatus('error', 'Save failed');
+      setStatus('error', '❌ Save failed');
       console.error('Save error:', data.error);
     }
   })
   .catch(err => {
-    setStatus('error', 'Save failed');
+    setStatus('error', '❌ Save failed');
     console.error('Network error:', err);
   });
 }
@@ -547,6 +557,7 @@ window.addEventListener('beforeunload', e => {
   if (isDirty) { e.preventDefault(); e.returnValue = ''; }
 });
 
+// ESC key closes panels
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     document.querySelectorAll('.doc-panel').forEach(p => p.classList.remove('open'));
