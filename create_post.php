@@ -129,6 +129,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_post'])) {
         .upload-area:hover { border-color: var(--accent); background: rgba(79,142,247,.05); }
         .upload-area.dragover { border-color: var(--accent); background: rgba(79,142,247,.1); }
         .upload-preview { max-width: 100%; max-height: 300px; border-radius: 10px; margin: 16px 0; }
+
+        .preview-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-top: 16px;
+        }
+
+        .upload-preview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            display: block;
+        }
+
+        .remove-image-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(0,0,0,.7);
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            opacity: 0;
+            transition: .2s
+        }
+
+        .preview-wrapper:hover .remove-image-btn{
+            opacity: 1;
+        }
+
+        .remove-image-btn:hover{
+            background: rgba(255,80,80,.9);
+        }
     </style>
 </head>
 <body>
@@ -212,7 +249,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_post'])) {
                                 </div>
                                 <input type="file" id="imageInput" name="image_url" accept="image/*" 
                                        style="display: none;" onchange="previewImage(this)">
-                                <img id="imagePreview" class="upload-preview" style="display: none;">
+
+                                <div class="preview-wrapper" id="previewWrapper" style="display: none;">
+                                    <img id="imagePreview" class="upload-preview" style="display: none;">
+                                    <button type="button" class="remove-image-btn" onclick="removeImage(event)">✕</button>
+                                </div>
                             </div>
                         </div>
 
@@ -258,11 +299,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_post'])) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     const preview = document.getElementById('imagePreview');
+                    const wrapper = document.getElementById("previewWrapper");
                     preview.src = e.target.result;
+
+                    // Show preview
+                    wrapper.style.display = "inline-block";
                     preview.style.display = 'block';
+                    document.getElementById("uploadArea").style.display = "none";
                 };
                 reader.readAsDataURL(input.files[0]);
             }
+        }
+
+        function removeImage(event)
+        {
+            event.stopPropagation();
+
+            const input = document.getElementById("imageInput");
+            const preview = document.getElementById("imagePreview");
+            const wrapper = document.getElementById("previewWrapper");
+
+            input.value = "";
+            preview.src = "";
+
+            preview.style.display = "none";
+            wrapper.style.display = "none";
+            document.getElementById("uploadArea").style.display = "block";
         }
 
         // Drag and drop
