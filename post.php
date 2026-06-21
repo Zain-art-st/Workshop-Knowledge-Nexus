@@ -18,7 +18,7 @@ if(!$post)
     }
 
 // Fetch comments with author info
-$comment_query = "SELECT c.*, u.username, u.profile_photo FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id = ? ORDER BY c.created_at ASC";
+$comment_query = "SELECT c.*, u.username, u.profile_photo FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id = ? AND c.is_removed = 0 ORDER BY c.created_at ASC";
 $comment_stmt = mysqli_prepare($conn, $comment_query);
 mysqli_stmt_bind_param($comment_stmt, "i", $post_id);
 mysqli_stmt_execute($comment_stmt);
@@ -41,7 +41,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
     <link rel="stylesheet" href="styles.css">
     <style>
         .post-container {max-width: 700px; margin: 0 auto; padding: 0 20px; position: relative;}
-        .post-card {width: 100%; margin-bottom: 20px;}
+        .post-card {width: 100%; margin-bottom: 20px; display: flex; justify-content: flex-start; gap: 16px;}
 
         .post-header {
             display: flex;
@@ -224,20 +224,24 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 
         .comment-actions {
             display: flex;
+            align-items: center;
             gap: 8px;
         }
 
-        .comment-vote-btn {
-            background: none;
+
+        .comment-reply-btn {
+            background: rgba(255, 255, 255, .06);
             border: none;
-            cursor: pointer;
+            border-radius: 20px;
             color: var(--text-muted);
-            font-size: 11px;
-            padding: 0;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 4px 10px;
             transition: color 0.2s;
+            height: 36px;
         }
 
-        .comment-vote-btn:hover {
+        .comment-reply-btn:hover {
             color: var(--accent);
         }
 
@@ -303,7 +307,135 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         .reply-submit {background: var(--accent); border: none; color: white; padding: 8px 18px; border-radius: 10px; cursor:pointer}
         .back-btn {position: absolute; left: -30px; top: 18px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; text-decoration: none; color: var(--text-main); font-size: 28px; transition: .2s;}
         .back-btn:hover {background: rgba(255, 255, 255, .08); color: var(--accent);}
+        .comment-menu, .post-menu {position: relative; background: rgba(255, 255, 255, .06); border: none; border-radius: 20px; color: var(--text-muted); cursor: pointer; font-size: 12px; padding: 0; transition: color 0.2s;}
+        .comment-menu-btn {background: none; border: none; color: white; cursor: pointer; font-size: 18px; padding: 6px;}
+        .comment-dropdown, .post-dropdown {display: none; position: absolute; top: 110%; right: 0; min-width: 140px; background: #1e1e35; border: 1px solid rgba(255, 255, 255, .15); border-radius: 10px; overflow: hidden; z-index: 100;}
+        .comment-dropdown a, .post-dropdown a {display: block; padding: 10px 14px; color: white; text-decoration: none;}
+        .comment-dropdown a:hover, .post-dropdown a:hover {background: rgba(255, 255, 255, .08);}
 
+        .report-modal {display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 9999; justify-content: center; align-items: center;}
+        .report-content {width: 600px; max-width: 90%; background: #2d2d2d; border-radius: 30px; padding: 40px; color: white;}
+        .report-content h2 {text-align: center; margin-bottom: 10px;}
+        .report-content p {text-align: center; margin-bottom: 30px;}
+        .confirm-btn {width: 100%; padding: 15px; border: none; border-radius: 30px; margin-top: 20px; font-size: 18px; font-weight: bold; cursor: pointer;}
+        .close-btn {float: right; font-size: 28px; cursor: pointer;}
+
+        #snackbar {
+            visibility: hidden;
+            position: fixed;
+            left: 50%;
+            bottom: 30px;
+            transform translateX(-50%);
+            min-width: 280px;
+            max-width: 500px;
+            background: #2d2d2d;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 14px;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+            z-index: 99999;
+            opacity: 0;
+            transition: opacity .4s ease, bottom .4s ease;
+            font-size: 14px;
+        }
+
+        #snackbar.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
+
+        .edit-comment-box {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .edit-comment-text {
+            width: 100%;
+            min-height: 90px;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            background: rgba(255, 255, 255, .05);
+            color: white;
+            resize: none;
+        }
+
+        .edit-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .edit-actions button {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, .08);
+            color: white;
+        }
+
+        .edit-actions button:last-child {
+            background: var(--accent);
+        }
+
+        .edit-post-title{
+            width:100%;
+            padding:12px;
+            background:rgba(255,255,255,.05);
+            border:1px solid var(--card-border);
+            border-radius:12px;
+            color:var(--text-main);
+            font-size:20px;
+            font-family:var(--font-display);
+            outline:none;
+            margin-bottom:12px;
+            box-sizing: border-box;
+        }
+
+        .edit-post-title:focus{
+            border-color:var(--accent);
+            background:rgba(79,142,247,.08);
+        }
+
+        .edit-post-content{
+            width:100%;
+            min-height:140px;
+            padding:12px;
+            border-radius:12px;
+            background:rgba(255,255,255,.05);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            resize:none;
+            font-size:14px;
+            outline:none;
+            box-sizing: border-box;
+        }
+
+        .edit-post-content:focus{
+            border-color: var(--accent);
+            background:rgba(79,142,247,.08);
+        }
+        
+        .post-left {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .post-right {
+            flex-shrink: 0;
+        }
+
+        .report-modal, .delete-modal, .deleteSuccess-modal {display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 9999; justify-content: center; align-items: center;}
+        .report-content, .delete-content, .deleteSuccess-content {width: 600px; max-width: 90%; background: #2d2d2d; border-radius: 30px; padding: 40px; color: white;}
+        .report-content h2, .delete-content h2, .deleteSuccess-content h2 {text-align: center; margin-bottom: 10px;}
+        .report-content p, .delete-content p, .deleteSuccess-content p {text-align: center; margin-bottom: 30px;}
+        .report-option {display: flex; align-items:center; gap: 15px; margin-bottom: 20px; font-size: 18px; cursor: pointer;}
+        .report-option input[type="radio"] {width: 25px; height: 25px;}
+        
     </style>
 </head>
 <body>
@@ -342,62 +474,86 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
         <div class="post-container">
             <a href="subcommunity.php?id=<?php echo $post['sub_id']; ?>" class="back-btn">&larr;</a>
             <!-- Post Card -->
-            <div class="card post-card">
+            <div class="card post-card" data-post-id="<?php echo $post['id']; ?>">
                 <!-- Post Header -->
-                <div class="post-header">
-                    <div class="post-avatar">
-                    <?php echo strtoupper(substr($post['username'], 0, 1)); ?>
-                    </div>
-                    <div class="post-header-info">
-                        <div class="post-username"><?php echo htmlspecialchars($post['username']); ?></div>
-                        <div class="post-time">
-                            <?php
-                                $time_diff = time() - strtotime($post['created_at']);
-                                if($time_diff < 60) echo "just now";
-                                else if($time_diff < 3600) echo floor($time_diff / 60) . " min ago";
-                                else if($time_diff < 86400) echo floor($time_diff / 3600) . " hours ago";
-                                else echo floor($time_diff / 86400) . " days ago";
-                            ?>
+                <div class="post-left">
+                    <div class="post-header">
+                        <div class="post-avatar">
+                        <?php echo strtoupper(substr($post['username'], 0, 1)); ?>
+                        </div>
+                        <div class="post-header-info">
+                            <div class="post-username"><?php echo htmlspecialchars($post['username']); ?></div>
+                            <div class="post-time">
+                                <?php
+                                    $time_diff = time() - strtotime($post['created_at']);
+                                    if($time_diff < 60) echo "just now";
+                                    else if($time_diff < 3600) echo floor($time_diff / 60) . " min ago";
+                                    else if($time_diff < 86400) echo floor($time_diff / 3600) . " hours ago";
+                                    else echo floor($time_diff / 86400) . " days ago";
+                                ?>
+                            </div>
                         </div>
                     </div>
+
+
+                    <!-- Post Title & Content -->
+                    <div class="post-title"><?php echo htmlspecialchars($post['title']); ?></div>
+
+                    <?php if($post['content']) : ?>
+                        <div class="post-content"><?php echo nl2br(htmlspecialchars($post['content'])); ?></div>
+                    <?php endif; ?>
+
+                    <!-- Post Image -->
+                    <?php if($post['image_url']): ?>
+                        <img src="<?php echo htmlspecialchars($post['image_url']); ?>" alt="Post image" class="post-image">
+                    <?php endif; ?>
+
+                    <!-- Post Link -->
+                    <?php if (!empty($post['link_url'])): ?>
+                        <a href="<?php echo htmlspecialchars(
+                            preg_match('/^https?:\/\//', $post['link_url'])
+                            ? $post['link_url']
+                            : 'https://' . $post['link_url']
+                        ); ?>" class="post-link" target="_blank" rel="noopener noreferrer">
+                        <?php echo htmlspecialchars($post['link_url']);?></a>
+                    <?php endif; ?>
+
+                    <!-- Post Actions -->
+                    <div class="post-actions">
+                        <div class="vote-group">
+                            <button type="button" class="vote-btn upvote" onclick="vote(<?php echo $post['id']; ?>, 'upvote')">▲</button>
+                            <span class="vote-count" id="upvotes-<?php echo $post['id'];?>"><?php echo $post['upvotes']; ?></span>
+                            <span style="width:1px; height: 20px; background: rgba(255,255,255,.25)"></span>
+                            <span class="vote-count" id="downvotes-<?php echo $post['id'];?>"><?php echo $post['downvotes'];?></span>
+                            <button type="button" class="vote-btn downvote" onclick="vote(<?php echo $post['id']; ?>, 'downvote')">▼</button>
+                        </div>
+                        <button class="action-btn">💬 <?php echo count($comments); ?> Comments</button>
+                    </div> 
                 </div>
+                <div class="post-right">
+                    <div class="post-menu">
+                            <button class="action-btn" onclick="togglePostMenu(this)" style="font-size: 20px; margin:20px 20px 0 0; color: white">&#8942;</button>
+                            <div class="post-dropdown">
+                            <?php if(isset($_SESSION['user_id']) && $_SESSION['user_id'] == $post['user_id']) : ?>
+                                <a href="#" onclick="closePostMenus(); startEditPost(<?php echo $post['id']; ?>,
+                                `<?php echo htmlspecialchars($post['title'], ENT_QUOTES); ?>`,
+                                `<?php echo htmlspecialchars($post['content'], ENT_QUOTES); ?>`
+                                ); return false;">
+                                Edit
+                                </a>
+                            <?php endif; ?>
 
-
-             <!-- Post Title & Content -->
-              <div class="post-title"><?php echo htmlspecialchars($post['title']); ?></div>
-
-              <?php if($post['content']) : ?>
-                <div class="post-content"><?php echo nl2br(htmlspecialchars($post['content'])); ?></div>
-              <?php endif; ?>
-
-              <!-- Post Image -->
-               <?php if($post['image_url']): ?>
-                <img src="<?php echo htmlspecialchars($post['image_url']); ?>" alt="Post image" class="post-image">
-               <?php endif; ?>
-
-               <!-- Post Link -->
-                <?php if (!empty($post['link_url'])): ?>
-                    <a href="<?php echo htmlspecialchars(
-                        preg_match('/^https?:\/\//', $post['link_url'])
-                        ? $post['link_url']
-                        : 'https://' . $post['link_url']
-                    ); ?>" class="post-link" target="_blank" rel="noopener noreferrer">
-                    <?php echo htmlspecialchars($post['link_url']);?></a>
-                <?php endif; ?>
-
-              <!-- Post Actions -->
-                <div class="post-actions">
-                    <div class="vote-group">
-                        <button type="button" class="vote-btn upvote" onclick="vote(<?php echo $post['id']; ?>, 'upvote')">▲</button>
-                        <span class="vote-count" id="upvotes-<?php echo $post['id'];?>"><?php echo $post['upvotes']; ?></span>
-                        <span style="width:1px; height: 20px; background: rgba(255,255,255,.25)"></span>
-                        <span class="vote-count" id="downvotes-<?php echo $post['id'];?>"><?php echo $post['downvotes'];?></span>
-                        <button type="button" class="vote-btn downvote" onclick="vote(<?php echo $post['id']; ?>, 'downvote')">▼</button>
+                            <a href="#" onclick="openReportModal(<?php echo $post['id']; ?>); return false;">Report</a>
+                            
+                            <?php $canDelete = isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $post['user_id'] || ($_SESSION['role'] ?? '') === 'admin'); ?>
+                            <?php if($canDelete): ?>
+                                <a href="#" onclick="openDeleteModal(<?php echo $post['id']; ?>); return false;">Delete</a>
+                            <?php endif; ?>
+                            </div>
                     </div>
-                    <button class="action-btn">💬 <?php echo count($comments); ?> Comments</button>
-
-                </div> 
+                </div>
             </div>
+            
 
         
 
@@ -424,7 +580,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                     }
                     ?>
                     <?php foreach($parent_comments as $comment): ?>
-                        <div class="comment-item">
+                        <div class="comment-item" data-comment-id="<?php echo $comment['id']; ?>">
                             <div class="comment-avatar">
                                 <?php echo strtoupper(substr($comment['username'], 0, 1)); ?>
                             </div>
@@ -446,25 +602,45 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                                 <div class="comment-content">
                                     <?php echo nl2br(htmlspecialchars($comment['content'])); ?>
                                 </div>
-                                <div class="vote-group">
-                                    <button type="button" class="vote-btn upvote" onclick="voteComment(<?php echo $comment['id']; ?>, 'upvote')">▲</button>
-                                    <span class="vote-count" id="comment-upvotes-<?php echo $comment['id']; ?>">
-                                        <?php echo $comment['upvotes']; ?>
-                                    </span>
+                                <div class="comment-actions">
+                                    <div class="vote-group">
+                                        <button type="button" class="vote-btn upvote" onclick="voteComment(<?php echo $comment['id']; ?>, 'upvote')">▲</button>
+                                        <span class="vote-count" id="comment-upvotes-<?php echo $comment['id']; ?>">
+                                            <?php echo $comment['upvotes']; ?>
+                                        </span>
 
-                                    <span style="width:1px; height: 20px; background: rgba(255,255,255,.25)"></span>
+                                        <span style="width:1px; height: 20px; background: rgba(255,255,255,.25)"></span>
 
-                                    <span class="vote-count" id="comment-downvotes-<?php echo $comment['id']; ?>">
-                                        <?php echo $comment['downvotes']; ?>
-                                    </span>
-                                    <button type="button" class="vote-btn downvote" onclick="voteComment(<?php echo $comment['id']; ?>, 'downvote')">▼</button>
+                                        <span class="vote-count" id="comment-downvotes-<?php echo $comment['id']; ?>">
+                                            <?php echo $comment['downvotes']; ?>
+                                        </span>
+                                        <button type="button" class="vote-btn downvote" onclick="voteComment(<?php echo $comment['id']; ?>, 'downvote')">▼</button>
+                                    </div>
 
-                                    <button type="button" class="comment-vote-btn" onclick="showReplyBox(
-                                    <?php echo $comment['id']; ?>,
-                                    '<?php echo htmlspecialchars($comment['username']); ?>'
-                                    )">Reply</button>
+                                    <button type="button" class="comment-reply-btn" onclick="showReplyBox(<?php echo $comment['id']; ?>, 
+                                    '<?php echo htmlspecialchars($comment['username']); ?>')">Reply</button>
+
+                                    <div class="comment-menu">
+                                        <button type="button" class="comment-menu-btn" onclick="toggleCommentMenu(this)">
+                                            &#8943;
+                                        </button>
+                                    
+                                        <div class="comment-dropdown">
+                                            <?php if(isset($_SESSION['user_id']) && $_SESSION['user_id'] == $comment['user_id']) : ?>
+                                                <a href="#" onclick="closeCommentMenus(); startEditComment(<?php echo $comment['id']; ?>,
+                                                `<?php echo htmlspecialchars($comment['content'], ENT_QUOTES); ?>`
+                                                ); return false;">
+                                                Edit    
+                                                </a>
+                                            <?php endif ?>
+
+                                            <a href="#" onclick="openCommentReportModal(<?php echo $comment['id']; ?>); return false;">Report</a>
+                                            <?php if (isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $comment['user_id'] || (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'))): ?>
+                                                <a href="#" onclick="openDeleteCommentModal(<?php echo $comment['id']; ?>); return false;">Delete</a>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
                                 </div>
-
                                 <div id="reply-container-<?php echo $comment['id']; ?>"></div>
 
                                 <!-- Child comments -->
@@ -472,7 +648,8 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                                 if(isset($child_comments[$comment['id']])) : ?>
                                     <div class="child-comments">
                                     <?php foreach($child_comments[$comment['id']] as $child): ?>
-                                        <div class="comment-item">
+                                        <div class="comment-item" data-comment-id="<?php echo $child['id']; ?>"
+                                        data-parent-id="<?php echo $child['parent_id']; ?>">
                                             <div class="comment-avatar">
                                                 <?php
                                                 echo strtoupper(substr($child['username'], 0, 1));
@@ -500,25 +677,51 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
                                                     <?php echo nl2br(htmlspecialchars($child['content'])); ?>
                                                 </div>
 
-                                                <div class="vote-group">
-                                                    <button type="button" class="vote-btn upvote" onclick="voteComment(<?php echo $child['id']; ?>, 'upvote')">▲</button>
-                                                    <span class="vote-count" id="comment-upvotes-<?php echo $child['id']; ?>">
-                                                        <?php echo $child['upvotes']; ?>
-                                                    </span>
+                                                <div class="comment-actions">
+                                                    <div class="vote-group">
+                                                        <button type="button" class="vote-btn upvote" onclick="voteComment(<?php echo $child['id']; ?>, 'upvote')">▲</button>
+                                                        <span class="vote-count" id="comment-upvotes-<?php echo $child['id']; ?>">
+                                                            <?php echo $child['upvotes']; ?>
+                                                        </span>
 
-                                                    <span style="width:1px; height: 20px; background: rgba(255,255,255,.25)"></span>
+                                                        <span style="width:1px; height: 20px; background: rgba(255,255,255,.25)"></span>
 
-                                                    <span class="vote-count" id="comment-downvotes-<?php echo $child['id']; ?>">
-                                                        <?php echo $child['downvotes']; ?>
-                                                    </span>
-                                                    <button type="button" class="vote-btn downvote" onclick="voteComment(<?php echo $child['id']; ?>, 'downvote')">▼</button>
+                                                        <span class="vote-count" id="comment-downvotes-<?php echo $child['id']; ?>">
+                                                            <?php echo $child['downvotes']; ?>
+                                                        </span>
+                                                        <button type="button" class="vote-btn downvote" onclick="voteComment(<?php echo $child['id']; ?>, 'downvote')">▼</button>   
+                                                    </div>
+                                                    <button type="button" class="comment-reply-btn" onclick="showReplyBox(
+                                                        <?php echo $child['id']; ?>,
+                                                        '<?php echo htmlspecialchars($child['username']); ?>'
+                                                        )">Reply</button>
 
-                                                    <button type="button" class="comment-vote-btn" onclick="showReplyBox(
-                                                    <?php echo $child['id']; ?>,
-                                                    '<?php echo htmlspecialchars($child['username']); ?>'
-                                                    )">Reply</button>
+                                                        <div class="comment-menu">
+                                                            <button type="button" class="comment-menu-btn" onclick="toggleCommentMenu(this)">
+                                                                &#8943
+                                                            </button>
+
+                                                            <div class="comment-dropdown">
+                                                                 <?php if(isset($_SESSION['user_id']) && $_SESSION['user_id'] == $child['user_id']) : ?>
+                                                                    <a href="#" onclick="closeCommentMenus(); startEditComment(<?php echo $child['id']; ?>,
+                                                                    `<?php echo htmlspecialchars($child['content'], ENT_QUOTES); ?>`
+                                                                    ); return false;">
+                                                                    Edit    
+                                                                    </a>
+                                                                <?php endif ?>
+
+                                                                <a href="#" onclick="openCommentReportModal(<?php echo $child['id']; ?>); return false;">
+                                                                    Report
+                                                                </a>
+
+                                                                <?php if(isset($_SESSION['user_id']) && ($_SESSION['user_id'] == $child['user_id'] || (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'))): ?>
+                                                                    <a href="#" onclick="openDeleteCommentModal(<?php echo $child['id']; ?>); return false;">
+                                                                        Delete
+                                                                    </a>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                        </div>
                                                 </div>
-
                                                 <div id="reply-container-<?php echo $child['id']; ?>"></div>
                                             </div>
                                         </div>
@@ -546,6 +749,132 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
          </div>
         </div>
     </div>
+
+    <div id="deleteCommentModal" class="report-modal">
+        <div class="report-content">
+            <h2>Delete Comment</h2>
+            <p>Are you sure you want to delete this comment?</p>
+            <input type="hidden" id="deleteCommentId">
+            <div style="display: flex; gap: 15px; margin-top: 25px;">
+                <button class="confirm-btn" onclick="deleteComment()">
+                    Delete
+                </button>
+                <button class="confirm-btn" onclick="closeDeleteCommentModal()">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="reportCommentModal" class="report-modal">
+        <div class="report-content">
+           <span class="close-btn" onclick="closeCommentReportModal()">&times;</span>
+
+            <h2>REPORT</h2>
+            <p>Tell us what's going on</p>
+
+            <form id="reportCommentForm">
+                <input type="hidden" id="reportCommentId" name="comment_id">
+
+                <label class="report-option">
+                    <input type="radio" name="comment_reason" value="Explicit content">
+                    Explicit content
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="comment_reason" value="Harassment and bullying">
+                    Harassment and bullying
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="comment_reason" value="Harmful or dangerous acts">
+                    Harmful or dangerous acts
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="comment_reason" value="Self harm">
+                    Suicidal, self harm or disorders that caused harm
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="comment_reason" value="Fake news">
+                    Fake news
+                </label>
+
+                <button type="button" class="confirm-btn" onclick="submitCommentReport()">
+                    Confirm
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="reportModal" class="report-modal">
+        <div class="report-content">
+            <span class="close-btn" onclick="closeReportModal()">&times;</span>
+
+            <h2>REPORT</h2>
+            <p>Tell us what's going on</p>
+
+            <form id="reportForm">
+                <input type="hidden" id="reportPostId" name="post_id">
+
+                <label class="report-option">
+                    <input type="radio" name="reason" value="Explicit content">
+                    Explicit content
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="reason" value="Harassment and bullying">
+                    Harassment and bullying
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="reason" value="Harmful or dangerous acts">
+                    Harmful or dangerous acts
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="reason" value="Self harm">
+                    Suicidal, self harm or disorders that caused harm
+                </label>
+
+                <label class="report-option">
+                    <input type="radio" name="reason" value="Fake news">
+                    Fake news
+                </label>
+
+                <button type="button" class="confirm-btn" onclick="submitReport()">
+                    Confirm
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="deleteModal" class="delete-modal">
+        <div class="delete-content">
+            <span class="close-btn" onclick="closeDeleteModal()">
+                &times;
+            </span>
+
+            <h2 style="color:red;">Warning</h2>
+
+            <p>Are you sure you want to delete this post?</p>
+
+            <input type="hidden" id="deletePostId">
+
+            <div style="display: flex; gap: 15px; margin-top: 25px;">
+                <button class="confirm-btn" style="background:#555;" onclick="closeDeleteModal()">
+                    No
+                </button>
+
+                <button class="confirm-btn" style="background:#d9534f;" onclick="deletePost()">
+                    Yes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="snackbar"></div>
 
     <script>
         function vote(postId, voteType) {
@@ -646,6 +975,432 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 
             container.querySelector('.reply-cancel').onclick = function() {container.innerHTML = '';};
         }
+
+        function togglePostMenu(button)
+        {
+            const menu = button.nextElementSibling;
+
+            document.querySelectorAll(".post-dropdown").forEach(m => {
+                if(m !== menu)
+                {
+                    m.style.display = "none";
+                }
+            });
+
+            menu.style.display = menu.style.display === "block" ? "none" : "block";
+        }
+
+        function toggleCommentMenu(button)
+        {
+            const menu = button.nextElementSibling;
+
+            document.querySelectorAll(".comment-dropdown").forEach(m => {
+                if(m !== menu)
+                {
+                    m.style.display = "none";
+                }
+            });
+
+            menu.style.display = menu.style.display === "block" ? "none" : "block";
+        }
+
+        document.addEventListener("click", function(event)
+        {
+            const insideMenu = event.target.closest(".comment-menu");
+
+            if(!insideMenu)
+            {
+                document.querySelectorAll(".comment-dropdown").forEach(menu => {
+                    menu.style.display = "none";
+                });
+            }
+        });
+
+        document.addEventListener("click", function(event)
+        {
+            if(!event.target.closest(".post-menu"))
+            {
+                document.querySelectorAll(".post-dropdown").forEach(menu => {
+                    menu.style.display = "none";
+                });
+            }
+        });
+
+        function openDeleteCommentModal(commentId)
+        {
+            document.getElementById("deleteCommentId").value = commentId;
+            document.getElementById("deleteCommentModal").style.display = "flex";
+        }
+
+        function closeDeleteCommentModal()
+        {
+            document.getElementById("deleteCommentModal").style.display = "none";
+        }
+
+        function deleteComment()
+        {
+            const id = document.getElementById("deleteCommentId").value;
+
+            fetch("delete_comment.php", 
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body:
+                "comment_id=" + encodeURIComponent(id)
+            })
+            .then(response => response.json())
+            .then(data=>{
+                if(data.success)
+                {
+                    closeDeleteCommentModal();
+                    document.querySelector(`[data-comment-id="${id}"]`)?.remove();
+                    showSnackbar("Comment deleted successfully");
+
+                    // Update comment counter
+                    const commentBtn = document.querySelector(".action-btn");
+
+                    if(commentBtn)
+                    {
+                        commentBtn.innerHTML = `💬 ${data.comment_count} Comments`;
+                    }
+                }
+                else
+                {
+                    alert(data);
+                }
+            })
+            .catch(error=>{
+                console.error(error);
+            });
+        }
+
+        function openCommentReportModal(commentId)
+        {
+            document.getElementById("reportCommentId").value = commentId;
+            document.getElementById("reportCommentModal").style.display = "flex";
+        }
+
+        function closeCommentReportModal()
+        {
+            document.getElementById("reportCommentModal").style.display = "none";
+            document.getElementById("reportCommentForm").reset();
+        }
+
+        function submitCommentReport()
+        {
+            const commentId = document.getElementById("reportCommentId").value;
+            const selected = document.querySelector('input[name="comment_reason"]:checked');
+            
+            fetch("report_comment.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+
+                body:
+                    "comment_id=" + encodeURIComponent(commentId) +
+                    "&reason=" + encodeURIComponent(selected.value)
+            })
+            .then(response => response.json())
+            .then(data => {
+
+                closeCommentReportModal();
+
+                if(data.success)
+                {
+                    showSnackbar(data.message);
+                }
+                else
+                {
+                    showSnackbar(data.message);
+                }
+            })
+            .catch(error => {
+                console.error(error);
+                showSnackbar("Something went wrong");
+            });
+        }
+
+        function showSnackbar(message)
+        {
+            const snackbar = document.getElementById("snackbar");
+            snackbar.textContent = message;
+            snackbar.classList.add("show");
+            setTimeout(() => {
+                snackbar.classList.remove("show");
+            }, 6000);
+        }
+
+        function startEditComment(commentId, currentContent)
+        {
+            const comment = document.querySelector(`[data-comment-id="${commentId}"]`);
+            const content = comment.querySelector(".comment-content");
+            content.innerHTML = `
+            <div class="edit-comment-box">
+                <textarea id="edit-comment-${commentId}"
+                class="edit-comment-text">${currentContent}</textarea>
+
+                <div class="edit-actions">
+                    <button onclick="cancelEditComment(${commentId}, \`${currentContent}\`)">
+                    Cancel
+                    </button>
+
+                    <button onclick="saveEditComment(${commentId})">
+                    Save
+                    </button>
+                </div>
+            </div>
+            `;
+        }
+
+        function cancelEditComment(id, original)
+        {
+            document.querySelector(`[data-comment-id="${id}"] .comment-content`)
+            .innerHTML = original.replace(/\n/g, "<br>");
+        }
+
+        function saveEditComment(commentId)
+        {
+            const content = document.getElementById(`edit-comment-${commentId}`).value;
+
+            fetch("edit_comment.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body:
+                    "comment_id=" + encodeURIComponent(commentId) +
+                    "&content=" + encodeURIComponent(content)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success)
+                {
+                    document.querySelector(`[data-comment-id="${commentId}"] .comment-content`)
+                    .innerHTML = content.replace(/\n/g, "<br>");
+                    showSnackbar("Comment updated");
+                }
+                else
+                {
+                    showSnackbar(data.message);
+                }
+            });
+        }
+
+        function startEditPost(postId, oldTitle, oldContent)
+        {
+            const post = document.querySelector(".post-card");
+            const title = post.querySelector(".post-title");
+            const content = post.querySelector(".post-content");
+
+            title.innerHTML = `
+                <input
+                    id="edit-post-title"
+                    value="${oldTitle}"
+                    class="edit-post-title"
+                >
+            `;
+
+            content.innerHTML = `
+                <div class="reply-box">
+                    <textarea
+                        id="edit-post-content"
+                        class="edit-post-content"
+                    >${oldContent}</textarea>
+
+                    <div class="edit-actions">
+                        <button onclick="cancelEditPost(\`${oldTitle}\`, \`${oldContent}\`)">
+                            Cancel
+                        </button>
+
+                        <button
+                            onclick="savePostEdit(${postId})">
+                            Save
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function cancelEditPost(originalTitle, originalContent)
+        {
+            document.querySelector(".post-title").innerHTML = originalTitle;
+            document.querySelector(".post-content").innerHTML = originalContent.replace(/\n/g, "<br>");
+        }
+        
+        function savePostEdit(postId)
+        {
+            const title = document.getElementById("edit-post-title").value;
+            const content = document.getElementById("edit-post-content").value;
+
+            fetch("edit_post.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+
+                body:
+                    "post_id=" + encodeURIComponent(postId) +
+                    "&title=" + encodeURIComponent(title) +
+                    "&content=" + encodeURIComponent(content)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success)
+                {
+                    document.querySelector(".post-title").innerHTML = title;
+                    document.querySelector(".post-content").innerHTML = content.replace(/\n/g, "<br>");
+                    showSnackbar("Post updated");
+                }
+                else
+                {
+                    showSnackbar(data.message);
+                }
+            })
+            .catch(error => {
+                console.error(error);
+                showSnackbar("Failed to update post");
+            });
+        }
+        
+        function closePostMenus()
+        {
+            document.querySelectorAll(".post-dropdown").forEach(menu => {
+                menu.style.display = "none";
+            });
+        }
+
+        function closeCommentMenus()
+        {
+            document.querySelectorAll(".comment-dropdown").forEach(menu => {
+                menu.style.display = "none";
+            });
+        }
+
+
+        function openReportModal(postId)
+        {
+            document.getElementById("reportPostId").value = postId;
+            document.getElementById("reportModal").style.display = "flex";
+        }
+
+        function closeReportModal()
+        {
+            document.getElementById("reportModal").style.display = "none";
+        }
+
+        window.onclick = function(event)
+        {
+            const modal = document.getElementById("reportModal");
+            const successModal = document.getElementById("deleteSuccessModal");
+
+            if(event.target === modal)
+            {
+                closeReportModal();
+            }
+
+            if(event.target === SuccessModal)
+            {
+                closeDeleteSuccessModal();
+            }
+        }
+
+        function submitReport()
+        {
+            const postId = document.getElementById("reportPostId").value;
+
+            const reason = document.querySelector('input[name="reason"]:checked');
+
+            if(!reason)
+            {
+                alert("Please select a reason");
+                return;
+            }
+
+            fetch("report_post.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type":
+                    "application/x-www-form-urlencoded"
+                },
+                body:
+                    "post_id=" + encodeURIComponent(postId) +
+                    "&reason=" + encodeURIComponent(reason.value)
+            })
+            .then(response => response.text())
+            .then(data => {
+                data = data.trim();
+                
+                if(data === "success")
+                {
+                    alert("Report submitted");
+                    closeReportModal();
+                }
+                else if(data === "already_reported")
+                {
+                    alert("You have already reported this post");
+                }
+                else
+                {
+                    alert("Failed to submit report");
+                }
+            })
+            .catch(error => {
+                console.error(error);
+            });
+        }
+
+        function openDeleteModal(postId)
+        {
+            document.getElementById("deletePostId").value = postId;
+            document.getElementById("deleteModal").style.display = "flex";
+        }
+
+        function closeDeleteModal()
+        {
+            document.getElementById("deleteModal").style.display = "none";
+        }
+
+        function deletePost()
+        {
+            const postId = document.getElementById("deletePostId").value;
+
+            fetch("delete_post.php", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body:
+                    "post_id=" + encodeURIComponent(postId)
+            })
+            .then(response=>response.text())
+            .then(data => {
+                
+                if(data.trim() === "success")
+                {
+                    closeDeleteModal();
+
+                    showSnackbar("Post deleted successfully");
+
+                    setTimeout(() => {
+                    window.location.href =
+                        "subcommunity.php?id=<?php echo $post['sub_id']; ?>";
+                        }, 1000);
+
+                }
+                else
+                {
+                    alert(data);
+                }
+            })
+            .catch(error => {
+                console.error(error);
+                showSnackbar("Failed to delete post");
+            });
+        }
+
     </script>
 </body>
 </html>

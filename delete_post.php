@@ -32,18 +32,36 @@ if(!$isOwner && !$isAdmin)
 }
 
 /*
-Soft delete
+Soft delete post
 */
+try {
+    $delete_query = "UPDATE posts SET is_removed = 1 WHERE id=?";
+    $delete_stmt = mysqli_prepare($conn, $delete_query);
+    mysqli_stmt_bind_param($delete_stmt, "i", $post_id);
 
-$delete_query = "UPDATE posts SET is_removed = 1 WHERE id=?";
-$delete_stmt = mysqli_prepare($conn, $delete_query);
-mysqli_stmt_bind_param($delete_stmt, "i", $post_id);
+    if (mysqli_stmt_execute($delete_stmt)) {
+        echo "success";
+    } else {
+        echo "Delete failed";
+    }
 
-if(mysqli_stmt_execute($delete_stmt))
+    // Soft delete all comments under this post
+    $comment_query = "
+        UPDATE comments
+        SET is_removed = 1
+        WHERE post_id = ?
+    ";
+
+    $comment_stmt = mysqli_prepare($conn, $comment_query);
+    mysqli_stmt_bind_param($comment_stmt, "i", $post_id);
+
+    if (!mysqli_stmt_execute($comment_stmt)) {
+        throw new Exception("Failed to delete comments");
+    }
+} catch (Exception $e) 
 {
-    echo "success";
-}
-else
-{
+    mysqli_rollback($conn);
     echo "Delete failed";
 }
+
+mysqli_close($conn);
