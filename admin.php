@@ -114,28 +114,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     exit();
 }
 
-//Stats on dashboard amdin
-$total_users   = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM users WHERE user_type!='admin'"))['c'];
-$today_signups = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM users WHERE DATE(created_at)=CURDATE() AND user_type!='admin'"))['c'];
-$last_month_u  = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM users WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND user_type!='admin'"))['c'];
-$total_posts   = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM posts"))['c'];
-$today_posts   = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM posts WHERE DATE(created_at)=CURDATE()"))['c'];
-$pending_reports = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM reports WHERE status='pending'"))['c'];
-$pending_kyc     = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM users WHERE kyc_status='pending'"))['c'];
+//Stats on dashboard amdin (Added safe fallbacks)
+$total_users   = @mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM users WHERE user_type!='admin'"))['c'] ?? 0;
+$today_signups = @mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM users WHERE DATE(created_at)=CURDATE() AND user_type!='admin'"))['c'] ?? 0;
+$last_month_u  = @mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM users WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND user_type!='admin'"))['c'] ?? 0;
+$total_posts   = @mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM posts"))['c'] ?? 0;
+$today_posts   = @mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM posts WHERE DATE(created_at)=CURDATE()"))['c'] ?? 0;
+$pending_reports = @mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM reports WHERE status='pending'"))['c'] ?? 0;
+$pending_kyc     = @mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM users WHERE kyc_status='pending'"))['c'] ?? 0;
 
 //KYC list 
 $kyc_res = mysqli_query($conn,
     "SELECT id, username, email, user_type, kyc_image, kyc_status, kyc_reason, created_at
      FROM users WHERE kyc_status='pending'
      ORDER BY created_at ASC");
-$kyc_list = mysqli_fetch_all($kyc_res, MYSQLI_ASSOC);
+$kyc_list = $kyc_res ? mysqli_fetch_all($kyc_res, MYSQLI_ASSOC) : [];
 
 //KYC resolved 
 $kyc_done_res = mysqli_query($conn,
     "SELECT id, username, email, user_type, kyc_status, kyc_reason, created_at
      FROM users WHERE kyc_status IN ('approved','rejected')
      ORDER BY created_at DESC LIMIT 20");
-$kyc_done = mysqli_fetch_all($kyc_done_res, MYSQLI_ASSOC);
+$kyc_done = $kyc_done_res ? mysqli_fetch_all($kyc_done_res, MYSQLI_ASSOC) : [];
 
 //Reports
 $reports_res = mysqli_query($conn,
@@ -151,14 +151,14 @@ $reports_res = mysqli_query($conn,
      JOIN users u ON r.reporter_id=u.id
      WHERE r.status='pending'
      ORDER BY r.created_at DESC");
-$reports = mysqli_fetch_all($reports_res, MYSQLI_ASSOC);
+$reports = $reports_res ? mysqli_fetch_all($reports_res, MYSQLI_ASSOC) : [];
 
 //moderation tab
 $users_res = mysqli_query($conn,
     "SELECT id, username, email, user_type, is_suspended, is_banned, created_at
      FROM users WHERE user_type != 'admin'
      ORDER BY created_at DESC LIMIT 50");
-$all_users = mysqli_fetch_all($users_res, MYSQLI_ASSOC);
+$all_users = $users_res ? mysqli_fetch_all($users_res, MYSQLI_ASSOC) : [];
 
 $active_tab = $_GET['tab'] ?? 'dashboard';
 ?>
@@ -288,10 +288,7 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
 </head>
 <body>
 <div class="stars-bg"></div>
-<div class="sunset-bg"></div>
-
-<!--navbar-->
-<header class="navbar">
+<div class="sunset-bg"></div> <header class="navbar">
   <a href="dashboard.php" class="nav-logo">ScholarSpace</a>
   <div class="nav-right" style="margin-left:auto;">
     <a href="dashboard.php" style="font-size:13px;color:var(--text-muted);text-decoration:none;">← Back to Feed</a>
@@ -299,27 +296,22 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
 </header>
 
 <div class="admin-layout">
-  <!--sidebar admin -->
-  <aside class="admin-sidebar">
+<aside class="admin-sidebar">
     <div class="admin-brand">ScholarSpace<br><span style="font-size:11px;font-weight:400;opacity:.6;">Admin Panel</span></div>
     <nav class="admin-nav">
-      <button class="admin-nav-item <?php echo $active_tab==='dashboard'?'active':''; ?>"
-              onclick="switchAdminTab('dashboard',this)">
+      <button type="button" class="admin-nav-item <?php echo $active_tab==='dashboard'?'active':''; ?>" data-target="dashboard" onclick="switchAdminTab('dashboard')">
         🏠 Dashboard
       </button>
-      <button class="admin-nav-item <?php echo $active_tab==='moderation'?'active':''; ?>"
-              onclick="switchAdminTab('moderation',this)">
+      <button type="button" class="admin-nav-item <?php echo $active_tab==='moderation'?'active':''; ?>" data-target="moderation" onclick="switchAdminTab('moderation')">
         🚩 Moderation
         <?php if($pending_reports>0): ?>
         <span class="badge-count"><?php echo $pending_reports; ?></span>
         <?php endif; ?>
       </button>
-      <button class="admin-nav-item <?php echo $active_tab==='users'?'active':''; ?>"
-              onclick="switchAdminTab('users',this)">
+      <button type="button" class="admin-nav-item <?php echo $active_tab==='users'?'active':''; ?>" data-target="users" onclick="switchAdminTab('users')">
         👥 Users
       </button>
-      <button class="admin-nav-item <?php echo $active_tab==='kyc'?'active':''; ?>"
-              onclick="switchAdminTab('kyc',this)">
+      <button type="button" class="admin-nav-item <?php echo $active_tab==='kyc'?'active':''; ?>" data-target="kyc" onclick="switchAdminTab('kyc')">
         🪪 eKYC Approvals
         <?php if ($pending_kyc > 0): ?>
         <span class="badge-count"><?php echo $pending_kyc; ?></span>
@@ -331,11 +323,9 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
     </div>
   </aside>
 
-  <!--admin main-->
-  <main class="admin-main">
+<main class="admin-main">
 
-    <!--dashboard -->
-    <div class="admin-content-tab <?php echo $active_tab==='dashboard'?'active':''; ?>" id="tab-dashboard">
+  <div class="admin-content-tab <?php echo $active_tab==='dashboard'?'active':''; ?>" id="tab-dashboard">
       <div class="admin-top">
         <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:22px;">⚙️</div>
         <div>
@@ -443,7 +433,7 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
         <?php endforeach; ?>
         <?php if(count($reports)>5): ?>
         <div style="padding:12px 20px;text-align:center;">
-          <button class="btn-action btn-dismiss" onclick="switchAdminTab('moderation')">
+          <button type="button" class="btn-action btn-dismiss" onclick="switchAdminTab('moderation')">
             View all <?php echo count($reports); ?> reports →
           </button>
         </div>
@@ -452,8 +442,7 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
       </div>
     </div>
 
-    <!--moderation tab-->
-    <div class="admin-content-tab <?php echo $active_tab==='moderation'?'active':''; ?>" id="tab-moderation">
+  <div class="admin-content-tab <?php echo $active_tab==='moderation'?'active':''; ?>" id="tab-moderation">
       <div class="admin-top">
         <h1>Moderation</h1>
       </div>
@@ -521,8 +510,7 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
       </div>
     </div>
 
-    <!--users tab-->
-    <div class="admin-content-tab <?php echo $active_tab==='users'?'active':''; ?>" id="tab-users">
+  <div class="admin-content-tab <?php echo $active_tab==='users'?'active':''; ?>" id="tab-users">
       <div class="admin-top"><h1>User Management</h1></div>
       <div class="admin-section">
         <div class="admin-section-header">All Users (latest 50)</div>
@@ -559,7 +547,7 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
                 <form method="POST" style="display:inline;">
                   <input type="hidden" name="action" value="ban"><input type="hidden" name="target_type" value="user">
                   <input type="hidden" name="target_id" value="<?php echo $u['id']; ?>"><input type="hidden" name="tab" value="users">
-                  <button type="submit" class="btn-action btn-ban" onclick="return confirm('Ban <?php echo htmlspecialchars($u['username']); ?>?')">🚫</button>
+                  <button type="submit" class="btn-action btn-ban" onclick="return confirm('Ban <?php echo htmlspecialchars($u['username'], ENT_QUOTES); ?>?')">🚫</button>
                 </form>
                 <?php else: ?>
                 <form method="POST" style="display:inline;">
@@ -577,12 +565,10 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
       </div>
     </div>
 
-    <!--ekyc approvals part-->
-    <div class="admin-content-tab <?php echo $active_tab==='kyc'?'active':''; ?>" id="tab-kyc">
+  <div class="admin-content-tab <?php echo $active_tab==='kyc'?'active':''; ?>" id="tab-kyc">
       <div class="admin-top"><h1>🪪 eKYC Approvals</h1></div>
 
-      <!-- Pending -->
-      <div class="admin-section" style="margin-bottom:24px;">
+    <div class="admin-section" style="margin-bottom:24px;">
         <div class="admin-section-header">
           ⏳ Pending Verification
           <?php if ($pending_kyc > 0): ?>
@@ -600,8 +586,7 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
         <?php foreach ($kyc_list as $k): ?>
         <div style="padding:20px;border-bottom:1px solid var(--card-border);display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
 
-          <!--matric card image for kyc -->
-          <div>
+        <div>
             <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Submitted Matric Card</div>
             <?php if (!empty($k['kyc_image']) && file_exists(__DIR__.'/'.$k['kyc_image'])): ?>
             <img src="<?php echo htmlspecialchars($k['kyc_image']); ?>"
@@ -616,8 +601,7 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
             <?php endif; ?>
           </div>
 
-          <!--user info for kyc-->
-          <div>
+        <div>
             <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Submitted Information</div>
 
             <div style="background:rgba(255,255,255,.05);border:1px solid var(--card-border);border-radius:10px;padding:16px;margin-bottom:16px;">
@@ -631,14 +615,20 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
                 </div>
               </div>
               <?php
-              // Fetch matric number from profile table
-              $matric_row = mysqli_fetch_assoc(mysqli_query($conn,
-                  "SELECT matric_number FROM student_profiles WHERE user_id={$k['id']} LIMIT 1"));
-              if (!$matric_row) {
-                  $matric_row = mysqli_fetch_assoc(mysqli_query($conn,
-                      "SELECT matric_number FROM graduate_profiles WHERE user_id={$k['id']} LIMIT 1"));
+              $matric = '—';
+              $q_student = mysqli_query($conn, "SELECT matric_number FROM student_profiles WHERE user_id=" . intval($k['id']) . " LIMIT 1");
+              
+              if ($q_student && mysqli_num_rows($q_student) > 0) {
+                  $matric_row = mysqli_fetch_assoc($q_student);
+                  $matric = $matric_row['matric_number'];
+              } else {
+                  $q_grad = mysqli_query($conn, "SELECT matric_number FROM graduate_profiles WHERE user_id=" . intval($k['id']) . " LIMIT 1");
+                  if ($q_grad && mysqli_num_rows($q_grad) > 0) {
+                      $matric_row = mysqli_fetch_assoc($q_grad);
+                      $matric = $matric_row['matric_number'];
+                  }
               }
-              $matric = $matric_row['matric_number'] ?? '—';
+              // ------------------------------------------------------------------------
               ?>
               <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--card-border);font-size:13px;">
                 <span style="color:var(--text-muted);">Account Type</span>
@@ -656,20 +646,18 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
               </div>
             </div>
 
-            <!-- Approve button -->
-            <form method="POST" style="margin-bottom:10px;">
+          <form method="POST" style="margin-bottom:10px;">
               <input type="hidden" name="action" value="kyc_approve">
               <input type="hidden" name="target_id" value="<?php echo $k['id']; ?>">
               <input type="hidden" name="tab" value="kyc">
               <button type="submit" class="btn-action btn-restore"
                       style="width:100%;padding:10px;font-size:14px;border-radius:10px;"
-                      onclick="return confirm('Approve <?php echo htmlspecialchars($k['username']); ?>\'s identity?')">
-                ✅ Approve — Identity Verified
+                      onclick="return confirm('Approve <?php echo htmlspecialchars($k['username'], ENT_QUOTES); ?>\'s identity?')">
+                ✅ Approve
               </button>
             </form>
 
-            <!-- Reject with reason -->
-            <div style="background:rgba(255,79,106,.06);border:1px solid rgba(255,79,106,.2);border-radius:10px;padding:14px;">
+          <div style="background:rgba(255,79,106,.06);border:1px solid rgba(255,79,106,.2);border-radius:10px;padding:14px;">
               <div style="font-size:12px;font-weight:600;color:var(--danger);margin-bottom:8px;">❌ Reject Submission</div>
               <form method="POST">
                 <input type="hidden" name="action" value="kyc_reject">
@@ -690,10 +678,9 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
         <?php endif; ?>
       </div>
 
-      <!-- Recently resolved -->
-      <?php if (!empty($kyc_done)): ?>
+    <?php if (!empty($kyc_done)): ?>
       <div class="admin-section">
-        <div class="admin-section-header">📋 Recently Resolved (last 20)</div>
+        <div class="admin-section-header">Recently Resolved</div>
         <table class="users-table">
           <thead>
             <tr>
@@ -733,18 +720,19 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
 </div>
 
 <script>
-function switchAdminTab(name, btn) {
+function switchAdminTab(name) {
   document.querySelectorAll('.admin-content-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.admin-nav-item').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
+  
+  const tab = document.getElementById('tab-' + name);
+  if (tab) tab.classList.add('active');
+  
+  const btn = document.querySelector(`.admin-nav-item[data-target="${name}"]`);
   if (btn) btn.classList.add('active');
-  else {
-    document.querySelectorAll('.admin-nav-item').forEach(b => {
-      if (b.textContent.toLowerCase().includes(name)) b.classList.add('active');
-    });
-  }
-  history.replaceState(null,'','admin.php?tab='+name);
+  
+  const url = new URL(window.location.href);
+  url.searchParams.set('tab', name);
+  window.history.pushState({}, '', url);
 }
 </script>
-</body>
-</html>
+</body> </html>

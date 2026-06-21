@@ -75,26 +75,39 @@ if (isset($_POST['resend_otp'])) {
 
                     if ($pdata['user_type']==='student') {
                         $s=mysqli_prepare($conn,"INSERT INTO student_profiles (user_id,matric_number) VALUES (?,?)");
-                        mysqli_stmt_bind_param($s,"is",$new_user_id,$extra['matric_number']);
+                        $matric = $extra['matric_number'] ?? ''; // Assign to variable first
+                        mysqli_stmt_bind_param($s,"is",$new_user_id,$matric);
                         mysqli_stmt_execute($s);
                     } elseif ($pdata['user_type']==='graduate') {
                         $g=mysqli_prepare($conn,
                             "INSERT INTO graduate_profiles
                              (user_id,job_status,company,job_title,salary_range,education_level,field_of_study,graduation_year,linkedin_url,bio,skills)
                              VALUES (?,?,?,?,?,?,?,?,?,?,?)");
-                        $gy=!empty($extra['graduation_year'])?$extra['graduation_year']:null;
+                        
+                        // Assign all fallback expressions to variables first to prevent pass-by-reference fatal errors
+                        $job_status = $extra['job_status'] ?? 'unemployed';
+                        $company = $extra['company'] ?? '';
+                        $job_title = $extra['job_title'] ?? '';
+                        $salary_range = $extra['salary_range'] ?? '';
+                        $education_level = $extra['education_level'] ?? 'bachelor';
+                        $field_of_study = $extra['field_of_study'] ?? '';
+                        $gy = !empty($extra['graduation_year']) ? $extra['graduation_year'] : null;
+                        $linkedin_url = $extra['linkedin_url'] ?? '';
+                        $bio = $extra['bio'] ?? '';
+                        $skills = $extra['skills'] ?? '';
+
                         mysqli_stmt_bind_param($g,"issssssssss",
                             $new_user_id,
-                            $extra['job_status']??'unemployed',
-                            $extra['company']??'',
-                            $extra['job_title']??'',
-                            $extra['salary_range']??'',
-                            $extra['education_level']??'bachelor',
-                            $extra['field_of_study']??'',
+                            $job_status,
+                            $company,
+                            $job_title,
+                            $salary_range,
+                            $education_level,
+                            $field_of_study,
                             $gy,
-                            $extra['linkedin_url']??'',
-                            $extra['bio']??'',
-                            $extra['skills']??''
+                            $linkedin_url,
+                            $bio,
+                            $skills
                         );
                         mysqli_stmt_execute($g);
                     }

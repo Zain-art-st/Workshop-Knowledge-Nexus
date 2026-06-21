@@ -1,94 +1,112 @@
 <?php
 session_start();
 include "db.php";
-if (!isset($_SESSION['user_id'])) { header("Location: login.php"); exit(); }
+
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit();
+}
 
 $user_id   = $_SESSION['user_id'];
+$user_type = $_SESSION['user_type'];
 $doc_id    = (int)($_GET['id'] ?? 0);
-$doc       = null;
-$can_edit  = true;
+$can_edit  = false;
 $is_owner  = false;
+$doc       = null;
 
-// Load existing document
+// Load 
 if ($doc_id) {
     $doc = mysqli_fetch_assoc(mysqli_query($conn,
-        "SELECT * FROM documents WHERE id=$doc_id LIMIT 1"));
-    if (!$doc) { header("Location: my_posts.php"); exit(); }
+        "SELECT * FROM documents WHERE id = $doc_id LIMIT 1"));
 
-    $is_owner = ($doc['owner_id'] == $user_id);
+    if (!$doc) {
+        // Document not found
+        header("Location: dashboard.php?error=doc_not_found");
+        exit();
+    }
 
-    if (!$is_owner) {
-        // Check share permission
+    $is_owner = ((int)$doc['owner_id'] === $user_id) || $user_type === 'admin';
+
+    if ($is_owner) {
+        $can_edit = true;
+    } else {
+        // Check permission
         $share = mysqli_fetch_assoc(mysqli_query($conn,
-            "SELECT permission FROM document_shares WHERE doc_id=$doc_id AND user_id=$user_id LIMIT 1"));
-        // Also check token share mode
-        if (!$share && $doc['share_mode'] === 'edit') {
-            $can_edit = true;
-        } elseif ($share) {
+            "SELECT permission FROM document_shares
+             WHERE doc_id = $doc_id AND user_id = $user_id LIMIT 1"));
+        if ($share) {
             $can_edit = $share['permission'] === 'edit';
+        } elseif (!empty($doc['share_mode']) && $doc['share_mode'] === 'edit') {
+            $can_edit = true;
         } else {
-            //if no access
-            header("Location: dashboard.php"); exit();
+            // No access
+            header("Location: dashboard.php?error=no_access");
+            exit();
         }
     }
+} else {
+    // New document 
+    $is_owner = true;
+    $can_edit = true;
 }
 
-//check join subs
-$subs_res = mysqli_query($conn,
-    "SELECT s.id, s.name FROM subcommunities s
-     JOIN sub_memberships sm ON s.id=sm.sub_id
-     WHERE sm.user_id=$user_id ORDER BY s.name ASC");
-$my_subs = mysqli_fetch_all($subs_res, MYSQLI_ASSOC);
-
-//Handle save
-if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['save_doc']) && $can_edit) {
-    $title   = trim($_POST['title']   ?? 'Untitled Document');
-    $content = $_POST['content']      ?? '';
-
-    if ($doc_id && $doc) {
-        //Update existing
-        $upd = mysqli_prepare($conn,"UPDATE documents SET title=?,content=?,updated_at=NOW() WHERE id=? AND owner_id=?");
-        mysqli_stmt_bind_param($upd,"ssii",$title,$content,$doc_id,$user_id);
-        mysqli_stmt_execute($upd);
-        header("Location: document_editor.php?id=$doc_id&saved=1"); exit();
-    } else {
-        //Create new
-        $token = bin2hex(random_bytes(32));
-        $ins = mysqli_prepare($conn,
-            "INSERT INTO documents (owner_id,title,content,share_token) VALUES (?,?,?,?)");
-        mysqli_stmt_bind_param($ins,"isss",$user_id,$title,$content,$token);
-        mysqli_stmt_execute($ins);
-        $new_id = mysqli_insert_id($conn);
-        header("Location: document_editor.php?id=$new_id&saved=1"); exit();
-    }
-}
-
-//Handle share settings update
-if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_share']) && $is_owner) {
-    $mode = in_array($_POST['share_mode'],['private','view','edit']) ? $_POST['share_mode'] : 'private';
-    mysqli_query($conn,"UPDATE documents SET share_mode='$mode' WHERE id=$doc_id");
+//share mode 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_share']) && $is_owner && $doc_id) {
+    $mode = in_array($_POST['share_mode'], ['private','view','edit'])
+          ? $_POST['share_mode'] : 'private';
+    mysqli_query($conn,
+        "UPDATE documents SET share_mode='$mode' WHERE id=$doc_id");
     $doc['share_mode'] = $mode;
 }
 
-//Handle post to sub
-if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['post_to_sub']) && $is_owner && $doc_id) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['post_to_sub']) && $is_owner && $doc_id) {
     $sub_id = (int)($_POST['sub_id'] ?? 0);
     if ($sub_id) {
-        $doc_link = "document_editor.php?id=$doc_id";
+        $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
+                  . '://' . $_SERVER['HTTP_HOST']
+                  . rtrim(dirname($_SERVER['PHP_SELF']), '/') . '/';
+        $doc_url  = $base_url . 'view_doc.php?token=' . $doc['share_token'];
+        $snippet  = mb_substr(strip_tags($doc['content'] ?? ''), 0, 300);
+        $ptitle   = $doc['title'];
+
         $ins = mysqli_prepare($conn,
-            "INSERT INTO posts (user_id,sub_id,title,content,link_url) VALUES (?,?,?,?,?)");
-        $snippet = mb_substr(strip_tags($doc['content'] ?? ''),0,300);
-        $post_title = $doc['title'];
-        mysqli_stmt_bind_param($ins,"iisss",$user_id,$sub_id,$post_title,$snippet,$doc_link);
+            "INSERT INTO posts (user_id, sub_id, title, content, link_url) VALUES (?,?,?,?,?)");
+        mysqli_stmt_bind_param($ins, "iisss",
+            $user_id, $sub_id, $ptitle, $snippet, $doc_url);
         mysqli_stmt_execute($ins);
         $post_id = mysqli_insert_id($conn);
-        mysqli_query($conn,"UPDATE documents SET sub_id=$sub_id,post_id=$post_id WHERE id=$doc_id");
-        header("Location: document_editor.php?id=$doc_id&posted=1"); exit();
+
+        mysqli_query($conn,
+            "UPDATE documents SET sub_id=$sub_id, post_id=$post_id,
+             share_mode=IF(share_mode='private','view',share_mode)
+             WHERE id=$doc_id");
+        $doc = mysqli_fetch_assoc(mysqli_query($conn,
+            "SELECT * FROM documents WHERE id=$doc_id LIMIT 1"));
+
+        header("Location: post.php?id=$post_id");
+        exit();
     }
 }
 
-$share_url = $doc ? ((!empty($_SERVER['HTTP_HOST']) ? 'http://'.$_SERVER['HTTP_HOST'] : '') .
-    dirname($_SERVER['PHP_SELF']) . '/view_doc.php?token=' . $doc['share_token']) : '';
+$share_url = '';
+if ($doc && !empty($doc['share_token'])) {
+    $base_url  = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
+               . '://' . $_SERVER['HTTP_HOST']
+               . rtrim(dirname($_SERVER['PHP_SELF']), '/') . '/';
+    $share_url = $base_url . 'view_doc.php?token=' . $doc['share_token'];
+}
+
+$subs_res = mysqli_query($conn,
+    "SELECT s.id, s.name FROM subcommunities s
+     JOIN sub_memberships sm ON s.id = sm.sub_id
+     WHERE sm.user_id = $user_id ORDER BY s.name ASC");
+$my_subs = mysqli_fetch_all($subs_res, MYSQLI_ASSOC);
+if ($user_type === 'admin') {
+    $my_subs = mysqli_fetch_all(
+        mysqli_query($conn, "SELECT id, name FROM subcommunities ORDER BY name ASC"),
+        MYSQLI_ASSOC
+    );
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -99,144 +117,248 @@ $share_url = $doc ? ((!empty($_SERVER['HTTP_HOST']) ? 'http://'.$_SERVER['HTTP_H
   <link rel="stylesheet" href="styles.css">
   <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
   <style>
-    body { overflow:hidden; }
-    .doc-layout { display:flex; flex-direction:column; height:100vh; padding-top:58px; }
+    html, body { height:100%; overflow:hidden; margin:0; padding:0; }
 
-/*doc topbar*/
-      .doc-topbar {
-      display:flex; align-items:center; gap:12px; padding:8px 20px;
-      background:rgba(13,13,26,.9); backdrop-filter:blur(16px);
-      border-bottom:1px solid var(--card-border); z-index:100; flex-shrink:0;
+    .doc-shell {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: #1a1a2e;
     }
+
+    .doc-topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px;
+      height: 54px;
+      background: #13122a;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 200;
+    }
+    .doc-back {
+      font-size: 13px; color: #9b9ab0; text-decoration: none;
+      white-space: nowrap; padding: 5px 10px;
+      border-radius: 6px; transition: background .2s;
+    }
+    .doc-back:hover { background: rgba(255,255,255,.08); color: #f0eff5; }
     .doc-title-input {
-      flex:1; background:none; border:none; outline:none;
-      color:var(--text-main); font-family:var(--font-display);
-      font-size:16px; font-weight:700; min-width:0;
+      flex: 1; background: none; border: none; outline: none;
+      color: #f0eff5; font-family: 'Sora', sans-serif;
+      font-size: 16px; font-weight: 700; min-width: 0;
     }
-    .doc-title-input::placeholder { color:var(--text-muted); }
-    .doc-status { font-size:11px; color:var(--text-muted); white-space:nowrap; }
-    .doc-status.saved { color:var(--success); }
+    .doc-title-input::placeholder { color: #9b9ab0; }
+    .doc-title-input:read-only   { cursor: default; opacity: .7; }
+    .doc-status {
+      font-size: 11px; color: #9b9ab0; white-space: nowrap; min-width: 80px;
+    }
+    .doc-status.saved   { color: #3ecf8e; }
+    .doc-status.unsaved { color: #f59e0b; }
+    .doc-status.error   { color: #ff4f6a; }
+
     .doc-btn {
-      padding:6px 16px; border-radius:8px; font-size:13px; font-weight:600;
-      border:none; cursor:pointer; font-family:var(--font-display); white-space:nowrap; transition:all .2s;
+      padding: 6px 14px; border-radius: 8px; font-size: 13px;
+      font-weight: 600; border: none; cursor: pointer;
+      font-family: 'Sora', sans-serif; white-space: nowrap;
+      transition: opacity .2s, transform .15s;
     }
-    .doc-btn-primary { background:var(--accent); color:#fff; }
-    .doc-btn-primary:hover { background:var(--accent-hover); }
-    .doc-btn-ghost { background:rgba(255,255,255,.08); color:var(--text-muted); border:1px solid var(--card-border); }
-    .doc-btn-ghost:hover { background:rgba(255,255,255,.14); color:var(--text-main); }
+    .doc-btn:hover { opacity: .88; transform: translateY(-1px); }
+    .doc-btn-save   { background: #4f8ef7; color: #fff; }
+    .doc-btn-share  { background: rgba(79,142,247,.15); color: #4f8ef7; border: 1px solid rgba(79,142,247,.3); }
+    .doc-btn-post   { background: rgba(192,109,232,.15); color: #c06de8; border: 1px solid rgba(192,109,232,.3); }
+    .doc-btn-pdf    { background: rgba(62,207,142,.12); color: #3ecf8e; border: 1px solid rgba(62,207,142,.3); }
+    .doc-btn-close  {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: rgba(255,255,255,.08); color: #9b9ab0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; flex-shrink: 0;
+    }
+    .doc-btn-close:hover { background: rgba(255,79,106,.2); color: #ff4f6a; }
 
-/*Share panel*/
-    .share-panel {
-      display:none; position:absolute; top:58px; right:20px;
-      background:#1e1e35; border:1px solid var(--card-border);
-      border-radius:14px; padding:20px; width:340px;
-      box-shadow:0 8px 32px rgba(0,0,0,.5); z-index:200;
+    .doc-panel {
+      display: none; position: absolute;
+      top: 58px; right: 16px;
+      background: #1e1c35;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 14px; padding: 18px;
+      min-width: 300px; max-width: 360px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.6);
+      z-index: 300;
     }
-    .share-panel.open { display:block; }
-    .share-panel h4 { font-family:var(--font-display);font-size:15px;font-weight:700;margin-bottom:14px; }
-    .share-mode-group { display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px; }
+    .doc-panel.open { display: block; }
+    .doc-panel h4 {
+      font-family: 'Sora', sans-serif; font-size: 14px;
+      font-weight: 700; margin-bottom: 12px;
+      color: #f0eff5;
+    }
+    .doc-panel p { font-size: 12px; color: #9b9ab0; margin-bottom: 10px; line-height: 1.6; }
+
+    .share-mode-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin-bottom: 14px; }
     .share-mode-btn {
-      padding:8px 6px; border-radius:8px; border:1px solid var(--card-border);
-      background:rgba(255,255,255,.04); cursor:pointer; text-align:center;
-      font-size:11px; font-weight:600; color:var(--text-muted); transition:all .2s;
-      font-family:var(--font-body);
+      padding: 8px 4px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      color: #9b9ab0; font-size: 11px; font-weight: 600;
+      cursor: pointer; text-align: center; transition: all .2s;
+      font-family: 'DM Sans', sans-serif;
     }
-    .share-mode-btn:hover { border-color:var(--accent); color:var(--accent); }
-    .share-mode-btn.active { border-color:var(--accent); background:rgba(79,142,247,.15); color:var(--accent); }
-    .share-link-box {
-      display:flex; gap:6px; align-items:center;
-      background:rgba(255,255,255,.06); border:1px solid var(--card-border);
-      border-radius:8px; padding:8px 12px; margin-bottom:12px;
+    .share-mode-btn:hover,
+    .share-mode-btn.active {
+      border-color: #4f8ef7; background: rgba(79,142,247,.15); color: #4f8ef7;
     }
-    .share-link-box input {
-      flex:1; background:none; border:none; outline:none;
-      color:var(--text-muted); font-size:12px; font-family:var(--font-body);
+    .share-link-row {
+      display: flex; gap: 6px; align-items: center;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 8px; padding: 8px 12px;
+      margin-bottom: 8px;
     }
-    .share-link-box button {
-      background:none; border:none; color:var(--accent); cursor:pointer; font-size:12px; font-weight:600;
+    .share-link-row input {
+      flex: 1; background: none; border: none; outline: none;
+      color: #9b9ab0; font-size: 12px; font-family: 'DM Sans', sans-serif;
+    }
+    .share-link-row button {
+      background: none; border: none; color: #4f8ef7;
+      cursor: pointer; font-size: 12px; font-weight: 600;
+      font-family: 'DM Sans', sans-serif; white-space: nowrap;
+    }
+    .share-link-row button:hover { text-decoration: underline; }
+
+    .post-sub-select {
+      width: 100%; padding: 8px 12px; margin-bottom: 10px;
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 8px; color: #f0eff5;
+      font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none;
+    }
+    .post-sub-select option { background: #1e1c35; }
+
+  .doc-editor-wrap {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: #e8e8e8;
     }
 
-  /*Post panel*/
-    .post-panel {
-      display:none; position:absolute; top:58px; right:20px;
-      background:#1e1e35; border:1px solid var(--card-border);
-      border-radius:14px; padding:20px; width:300px;
-      box-shadow:0 8px 32px rgba(0,0,0,.5); z-index:200;
+    .doc-editor-wrap .ql-toolbar.ql-snow {
+      background: #f5f5f5;
+      border: none;
+      border-bottom: 1px solid #ddd;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      flex-shrink: 0;
     }
-    .post-panel.open { display:block; }
-    .post-panel h4 { font-family:var(--font-display);font-size:15px;font-weight:700;margin-bottom:14px; }
 
-  /*Editor area*/
-    .doc-editor-wrap {
-      flex:1; overflow:hidden; display:flex; flex-direction:column;
-      background:#fff; /* Quill works better on white */
+    .doc-page-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px 20px;
     }
-    .doc-editor-wrap .ql-toolbar { flex-shrink:0; }
-    .doc-editor-wrap .ql-container {
-      flex:1; overflow-y:auto; font-size:16px; line-height:1.8;
-    }
-    #quill-editor { height:100%; }
 
-  /*readonly overlay */
-    .readonly-notice {
-      text-align:center; padding:8px 20px;
-      background:rgba(245,158,11,.1); border-bottom:1px solid rgba(245,158,11,.2);
-      font-size:13px; color:var(--warning); flex-shrink:0;
+    .doc-page {
+      width: 100%;
+      max-width: 820px;
+      min-height: 90vh;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 4px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.25);
+      overflow: hidden;
+    }
+
+    .doc-page .ql-container.ql-snow {
+      border: none;
+      font-size: 15px;
+    }
+    .doc-page .ql-editor {
+      min-height: 90vh;
+      padding: 48px 56px;
+      color: #1a1a1a;
+      font-size: 15px;
+      line-height: 1.9;
+    }
+    .doc-page .ql-editor.ql-blank::before {
+      color: #aaa;
+      font-style: normal;
+      left: 56px;
+    }
+
+    .readonly-banner {
+      background: rgba(245,158,11,.1);
+      border-bottom: 1px solid rgba(245,158,11,.2);
+      padding: 8px 20px;
+      font-size: 13px;
+      color: #f59e0b;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+
+    .posted-banner {
+      background: rgba(62,207,142,.1);
+      border-bottom: 1px solid rgba(62,207,142,.2);
+      padding: 8px 20px;
+      font-size: 13px;
+      color: #3ecf8e;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    @media print {
+      .doc-shell    { display: none !important; }
+      #printArea    { display: block !important; }
     }
   </style>
 </head>
 <body>
-<div class="stars-bg" style="opacity:.3;"></div>
 
-<header class="navbar">
-  <a href="dashboard.php" class="nav-logo">ScholarSpace</a>
-  <div class="nav-right" style="margin-left:auto;gap:8px;">
-    <a href="my_posts.php" style="font-size:13px;color:var(--text-muted);text-decoration:none;margin-right:4px;">← My Docs</a>
-  </div>w
-</header>
+<div id="printArea" style="display:none; padding:40px; font-family:Georgia,serif; color:#000;">
+  <h1 id="printTitle" style="margin-bottom:24px; font-size:24px;"></h1>
+  <div id="printContent" style="font-size:14px; line-height:1.9;"></div>
+</div>
 
-<div style="position:relative;">
-  <form method="POST" id="docForm">
-    <input type="hidden" name="save_doc" value="1">
-    <input type="hidden" name="content" id="docContent">
+<div class="doc-shell">
 
-    <div class="doc-topbar">
-      <input type="text" name="title" class="doc-title-input"
-             placeholder="Untitled Document"
-             value="<?php echo htmlspecialchars($doc['title'] ?? ''); ?>"
-             <?php echo !$can_edit?'readonly':''; ?>>
+  <div class="doc-topbar">
+    <a href="dashboard.php" class="doc-back">← Back</a>
 
-      <span class="doc-status <?php echo isset($_GET['saved'])?'saved':''; ?>" id="docStatus">
-        <?php echo isset($_GET['saved']) ? '✅ Saved' : ($doc ? 'Last saved '.date('M j, g:i a', strtotime($doc['updated_at'])) : 'Unsaved'); ?>
-      </span>
+    <input type="text" id="docTitle" class="doc-title-input"
+           placeholder="Untitled Document"
+           value="<?php echo htmlspecialchars($doc['title'] ?? ''); ?>"
+           <?php echo !$can_edit ? 'readonly' : ''; ?>>
 
-      <?php if ($can_edit): ?>
-      <button type="submit" class="doc-btn doc-btn-primary">Save</button>
-      <?php endif; ?>
+    <span class="doc-status" id="docStatus">
+      <?php echo $doc ? 'Last saved ' . date('g:i a', strtotime($doc['updated_at'])) : 'Not saved yet'; ?>
+    </span>
 
-      <?php if ($is_owner && $doc_id): ?>
-      <button type="button" class="doc-btn doc-btn-ghost"
-              onclick="togglePanel('sharePanel')">Share</button>
-      <button type="button" class="doc-btn doc-btn-ghost"
-              onclick="togglePanel('postPanel')">Post to Sub</button>
-      <?php endif; ?>
+    <?php if ($can_edit): ?>
+    <button class="doc-btn doc-btn-save" onclick="saveDoc()">💾 Save</button>
+    <?php endif; ?>
 
-      <?php if (!$can_edit): ?>
-      <span style="font-size:12px;color:var(--text-muted);padding:4px 10px;background:rgba(255,255,255,.06);border-radius:6px;">👁 View only</span>
-      <?php endif; ?>
-    </div>
-  </form>
+    <?php if ($is_owner && $doc_id): ?>
+    <button class="doc-btn doc-btn-share" onclick="togglePanel('sharePanel')">🔗 Share</button>
+    <button class="doc-btn doc-btn-post"  onclick="togglePanel('postPanel')">📤 Post to Sub</button>
+    <?php endif; ?>
+
+    <button class="doc-btn doc-btn-pdf" onclick="exportPDF()">⬇️ Export PDF</button>
+
+    <button class="doc-btn doc-btn-close" onclick="closeDoc()" title="Close">✕</button>
+  </div>
 
   <?php if ($is_owner && $doc_id): ?>
-  <div class="share-panel" id="sharePanel">
-    <h4>Share Document</h4>
-    <form method="POST">
+  <div class="doc-panel" id="sharePanel">
+    <h4>🔗 Share Document</h4>
+    <p>Anyone who has the link can access this document based on the permission you set below.</p>
+    <form method="POST" action="document_editor.php?id=<?php echo $doc_id; ?>">
       <input type="hidden" name="update_share" value="1">
-      <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">Who can access via link?</p>
-      <div class="share-mode-group">
+      <div class="share-mode-row">
         <button type="submit" name="share_mode" value="private"
                 class="share-mode-btn <?php echo ($doc['share_mode']==='private')?'active':''; ?>">
-          <br>Private
+          🔒<br>Private
         </button>
         <button type="submit" name="share_mode" value="view"
                 class="share-mode-btn <?php echo ($doc['share_mode']==='view')?'active':''; ?>">
@@ -248,116 +370,188 @@ $share_url = $doc ? ((!empty($_SERVER['HTTP_HOST']) ? 'http://'.$_SERVER['HTTP_H
         </button>
       </div>
     </form>
-    <?php if ($doc['share_mode'] !== 'private'): ?>
-    <div class="share-link-box">
-      <input type="text" value="<?php echo htmlspecialchars($share_url); ?>" readonly id="shareLinkInput">
+    <?php if (!empty($share_url) && $doc['share_mode'] !== 'private'): ?>
+    <div class="share-link-row">
+      <input type="text" id="shareLinkInput" value="<?php echo htmlspecialchars($share_url); ?>" readonly>
       <button onclick="copyShareLink()">Copy</button>
     </div>
-    <p style="font-size:11px;color:var(--text-muted);">Anyone with this link can <?php echo $doc['share_mode']==='edit'?'edit':'view'; ?> this document.</p>
+    <p style="margin:0;">
+      Anyone with this link can
+      <strong style="color:#f0eff5;"><?php echo $doc['share_mode']==='edit' ? 'edit' : 'view'; ?></strong>
+      this document.
+    </p>
     <?php else: ?>
-    <p style="font-size:12px;color:var(--text-muted);">Link sharing is off. Change to View or Edit to generate a link.</p>
+    <p style="margin:0;color:#9b9ab0;">Set to View or Edit above to generate a shareable link.</p>
     <?php endif; ?>
   </div>
 
-  <div class="post-panel" id="postPanel">
-    <h4>Post to Community</h4>
-    <?php if ($doc['post_id']): ?>
-    <p style="font-size:13px;color:var(--success);">Already posted to a community.</p>
+
+  <div class="doc-panel" id="postPanel">
+    <h4>📤 Post to Community</h4>
+    <?php if (!empty($doc['post_id'])): ?>
+    <p style="color:#3ecf8e;">Already posted to a community.</p>
     <a href="post.php?id=<?php echo $doc['post_id']; ?>"
-       style="font-size:13px;color:var(--accent);text-decoration:none;">View post →</a>
+       style="color:#4f8ef7;font-size:13px;text-decoration:none;">View post →</a>
     <?php else: ?>
-    <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Share this document as a post in one of your communities.</p>
-    <form method="POST">
+    <p>Share this document as a post. The link will direct readers to the document.</p>
+    <form method="POST" action="document_editor.php?id=<?php echo $doc_id; ?>">
       <input type="hidden" name="post_to_sub" value="1">
-      <div class="form-group" style="margin-bottom:12px;">
-        <select name="sub_id" required style="background:rgba(255,255,255,.07);border:1px solid var(--card-border);border-radius:8px;padding:8px 12px;color:var(--text-main);width:100%;font-family:var(--font-body);font-size:13px;outline:none;">
-          <option value="">Choose community…</option>
-          <?php foreach($my_subs as $s): ?>
-          <option value="<?php echo $s['id']; ?>"><?php echo htmlspecialchars($s['name']); ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
-      <button type="submit" class="doc-btn doc-btn-primary" style="width:100%;">Post</button>
+      <select name="sub_id" class="post-sub-select" required>
+        <option value="">Choose a community…</option>
+        <?php foreach ($my_subs as $s): ?>
+        <option value="<?php echo $s['id']; ?>"><?php echo htmlspecialchars($s['name']); ?></option>
+        <?php endforeach; ?>
+      </select>
+      <button type="submit" class="doc-btn doc-btn-save" style="width:100%;padding:9px;">
+        Post to Community
+      </button>
     </form>
     <?php endif; ?>
   </div>
   <?php endif; ?>
-</div>
 
-<!--editor-->
-<div class="doc-layout">
   <?php if (!$can_edit): ?>
-  <div class="readonly-notice">👁 You have view-only access to this document.</div>
+  <div class="readonly-banner">You have view-only access to this document.</div>
   <?php endif; ?>
 
   <?php if (isset($_GET['posted'])): ?>
-  <div style="padding:8px 20px;background:rgba(62,207,142,.1);border-bottom:1px solid rgba(62,207,142,.2);font-size:13px;color:var(--success);text-align:center;">
-    ✅ Posted to community successfully! <a href="post.php?id=<?php echo $doc['post_id']; ?>" style="color:var(--accent);">View post →</a>
+  <div class="posted-banner">
+    ✅ Posted to community!
+    <a href="post.php?id=<?php echo $doc['post_id'] ?? ''; ?>" style="color:#4f8ef7;">View post →</a>
   </div>
   <?php endif; ?>
 
-  <div class="doc-editor-wrap">
-    <div id="quill-editor"><?php echo $doc['content'] ?? ''; ?></div>
+  <div class="doc-editor-wrap" id="editorWrap">
+    <div class="doc-page-scroll">
+      <div class="doc-page">
+        <div id="quillEditor"><?php echo $doc['content'] ?? ''; ?></div>
+      </div>
+    </div>
   </div>
+
 </div>
 
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
-<script src="QuillEditor/quill_toolbar.js"></script>
 <script>
-// Init Quill
-const quill = new Quill('#quill-editor', {
+const quill = new Quill('#quillEditor', {
   theme: 'snow',
   readOnly: <?php echo $can_edit ? 'false' : 'true'; ?>,
-  modules: { toolbar: <?php echo $can_edit ? 'ScholarSpaceToolbar' : 'false'; ?> }
+  placeholder: 'Start writing…',
+  modules: {
+    toolbar: <?php echo $can_edit ? 'true' : 'false'; ?>
+  }
 });
 
-// Auto-save every 30s
 <?php if ($can_edit): ?>
-let autoSaveTimer = setInterval(saveDoc, 30000);
-let isDirty = false;
-quill.on('text-change', () => { isDirty = true; document.getElementById('docStatus').textContent = 'Unsaved changes…'; document.getElementById('docStatus').className = 'doc-status'; });
-
-function saveDoc() {
-  if (!isDirty) return;
-  document.getElementById('docContent').value = quill.root.innerHTML;
-  document.getElementById('docForm').submit();
-}
-
-// Save on form submit
-document.getElementById('docForm').addEventListener('submit', function() {
-  document.getElementById('docContent').value = quill.root.innerHTML;
-});
-
-// Warn on close if unsaved
-window.addEventListener('beforeunload', e => {
-  if (isDirty) { e.preventDefault(); e.returnValue = ''; }
-});
+quill.getModule('toolbar') && (() => {
+  // Quill default snow toolbar 
+})();
 <?php endif; ?>
 
-// Panel toggle
+let isDirty     = false;
+let currentDocId = <?php echo $doc_id ?: 'null'; ?>;
+
+quill.on('text-change', () => {
+  isDirty = true;
+  setStatus('unsaved', '● Unsaved changes');
+});
+
+setInterval(() => { if (isDirty) saveDoc(); }, 30000);
+
+function setStatus(type, text) {
+  const el = document.getElementById('docStatus');
+  el.textContent  = text;
+  el.className    = 'doc-status ' + type;
+}
+
+function saveDoc() {
+  if (!<?php echo $can_edit ? 'true' : 'false'; ?>) return;
+  const title   = document.getElementById('docTitle').value.trim() || 'Untitled Document';
+  const content = quill.root.innerHTML;
+  setStatus('', 'Saving…');
+
+  fetch('save_document.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: currentDocId, title, content })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      currentDocId = data.doc_id;
+      isDirty      = false;
+      setStatus('saved', '✅Saved');
+      // Update URL without reload if new doc
+      if (!<?php echo $doc_id ?: 'false'; ?>) {
+        history.replaceState(null, '', 'document_editor.php?id=' + data.doc_id);
+      }
+      setTimeout(() => { if (!isDirty) setStatus('', ''); }, 3000);
+    } else {
+      setStatus('error', 'Save failed');
+      console.error('Save error:', data.error);
+    }
+  })
+  .catch(err => {
+    setStatus('error', 'Save failed');
+    console.error('Network error:', err);
+  });
+}
+
+function exportPDF() {
+  const title   = document.getElementById('docTitle').value || 'Untitled Document';
+  const content = quill.root.innerHTML;
+  document.getElementById('printTitle').textContent = title;
+  document.getElementById('printContent').innerHTML = content;
+  document.getElementById('printArea').style.display = 'block';
+  window.print();
+  setTimeout(() => {
+    document.getElementById('printArea').style.display = 'none';
+  }, 1500);
+}
+
 function togglePanel(id) {
-  const panels = ['sharePanel','postPanel'];
+  const panels = document.querySelectorAll('.doc-panel');
   panels.forEach(p => {
-    if (p !== id) document.getElementById(p)?.classList.remove('open');
+    if (p.id !== id) p.classList.remove('open');
   });
   document.getElementById(id)?.classList.toggle('open');
 }
+
 document.addEventListener('click', e => {
-  if (!e.target.closest('.share-panel') && !e.target.closest('.post-panel') &&
-      !e.target.closest('.doc-btn')) {
-    document.querySelectorAll('.share-panel,.post-panel').forEach(p=>p.classList.remove('open'));
+  if (!e.target.closest('.doc-panel') && !e.target.closest('.doc-btn-share') &&
+      !e.target.closest('.doc-btn-post')) {
+    document.querySelectorAll('.doc-panel').forEach(p => p.classList.remove('open'));
   }
 });
 
-// Copy link
 function copyShareLink() {
   const input = document.getElementById('shareLinkInput');
-  if (input) {
-    navigator.clipboard.writeText(input.value).then(() => {
-      alert('Link copied to clipboard!');
+  if (!input) return;
+  navigator.clipboard.writeText(input.value)
+    .then(() => alert('Link copied to clipboard!'))
+    .catch(() => {
+      input.select();
+      document.execCommand('copy');
+      alert('Link copied!');
     });
-  }
 }
+
+function closeDoc() {
+  if (isDirty) {
+    if (!confirm('You have unsaved changes. Leave without saving?')) return;
+  }
+  window.location.href = 'dashboard.php';
+}
+
+window.addEventListener('beforeunload', e => {
+  if (isDirty) { e.preventDefault(); e.returnValue = ''; }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.doc-panel').forEach(p => p.classList.remove('open'));
+  }
+});
 </script>
 </body>
 </html>
