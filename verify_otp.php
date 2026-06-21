@@ -6,9 +6,19 @@ if (isset($_SESSION['user_id'])) {
     header("Location: dashboard.php");
     exit();
 }
+=======
 
-$error   = "";
+if (isset($_SESSION['user_id'])) { header("Location: dashboard.php"); exit(); }
+=======
+if (isset($_SESSION["user_id"])) {
+    header("Location: dashboard.php");
+    exit();
+}
+
+
+$error = "";
 $success = "";
+
 $email   = $_SESSION['otp_email'] ?? $_GET['email'] ?? '';
 
 if (empty($email)) {
@@ -90,6 +100,7 @@ if (isset($_POST['verify_otp'])) {
 
                 // Insert into users
                 $ins = mysqli_prepare($conn,
+
                     "INSERT INTO users (username, email, password, user_type, profile_photo, is_verified)
                      VALUES (?,?,?,?,?,1)"
                 );
@@ -98,19 +109,143 @@ if (isset($_POST['verify_otp'])) {
                     $pdata['user_type'], $pdata['profile_photo']
                 );
 
+                    "INSERT INTO users (username,email,password,user_type,profile_photo,is_verified,kyc_status,kyc_image)
+                     VALUES (?,?,?,?,?,1,?,?)");
+                mysqli_stmt_bind_param($ins,"sssssss",
+                    $pdata['username'],$pdata['email'],$pdata['password_hash'],
+                    $pdata['user_type'],$pdata['profile_photo'],
+                    $kyc_status,$kyc_image);
+
+$email = $_SESSION["otp_email"] ?? ($_GET["email"] ?? "");
+
+if (empty($email)) {
+    header("Location: register.php");
+    exit();
+}
+
+// ── Resend OTP ───────────────────────────────────────────────────────────────
+if (isset($_POST["resend_otp"])) {
+    // Check pending registration exists
+    $chk = mysqli_prepare(
+        $conn,
+        "SELECT username FROM pending_registrations WHERE email=?",
+    );
+    mysqli_stmt_bind_param($chk, "s", $email);
+    mysqli_stmt_execute($chk);
+    $res = mysqli_stmt_get_result($chk);
+    if ($row = mysqli_fetch_assoc($res)) {
+        $otp = str_pad(random_int(0, 999999), 6, "0", STR_PAD_LEFT);
+
+        $del = mysqli_prepare($conn, "DELETE FROM otp_codes WHERE email=?");
+        mysqli_stmt_bind_param($del, "s", $email);
+        mysqli_stmt_execute($del);
+
+        $ins = mysqli_prepare(
+            $conn,
+            "INSERT INTO otp_codes (email, otp, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))",
+        );
+        mysqli_stmt_bind_param($ins, "ss", $email, $otp);
+        mysqli_stmt_execute($ins);
+
+        include_once "mailer.php";
+        $sent = sendOTPEmail($email, $row["username"], $otp);
+        $success = $sent
+            ? "✅ New OTP sent to your email!"
+            : "⚠️ Could not send email. Check mailer.php config.";
+    } else {
+        $error = "No pending registration found for this email.";
+    }
+}
+
+// ── Verify OTP ───────────────────────────────────────────────────────────────
+if (isset($_POST["verify_otp"])) {
+    // Combine 6 individual digit inputs
+    $digits = [];
+    for ($i = 1; $i <= 6; $i++) {
+        $digits[] = trim($_POST["d$i"] ?? "");
+    }
+    $entered_otp = implode("", $digits);
+
+    if (strlen($entered_otp) !== 6 || !ctype_digit($entered_otp)) {
+        $error = "Please enter all 6 digits.";
+    } else {
+        // Check OTP — expiry checked in PHP to avoid MySQL timezone mismatch
+        $stmt = mysqli_prepare(
+            $conn,
+            "SELECT id, expires_at FROM otp_codes
+             WHERE email=? AND otp=? AND used=0
+             ORDER BY created_at DESC LIMIT 1",
+        );
+        mysqli_stmt_bind_param($stmt, "ss", $email, $entered_otp);
+        mysqli_stmt_execute($stmt);
+        $res = mysqli_stmt_get_result($stmt);
+        $otp_row = mysqli_fetch_assoc($res);
+
+        // Check expiry in PHP
+        if ($otp_row && strtotime($otp_row["expires_at"]) < time()) {
+            $error = "Your OTP has expired. Please request a new one.";
+            $otp_row = null;
+        }
+
+        if ($otp_row) {
+            // Mark OTP used
+            $upd = mysqli_prepare(
+                $conn,
+                "UPDATE otp_codes SET used=1 WHERE id=?",
+            );
+            mysqli_stmt_bind_param($upd, "i", $otp_row["id"]);
+            mysqli_stmt_execute($upd);
+
+            // Fetch pending registration
+            $preg = mysqli_prepare(
+                $conn,
+                "SELECT * FROM pending_registrations WHERE email=? LIMIT 1",
+            );
+            mysqli_stmt_bind_param($preg, "s", $email);
+            mysqli_stmt_execute($preg);
+            $pres = mysqli_stmt_get_result($preg);
+
+            if ($pdata = mysqli_fetch_assoc($pres)) {
+                $extra = json_decode($pdata["extra_data"], true) ?? [];
+
+                // Insert into users
+                $ins = mysqli_prepare(
+                    $conn,
+                    "INSERT INTO users (username, email, password, user_type, profile_photo, is_verified)
+                     VALUES (?,?,?,?,?,1)",
+                );
+                mysqli_stmt_bind_param(
+                    $ins,
+                    "sssss",
+                    $pdata["username"],
+                    $pdata["email"],
+                    $pdata["password_hash"],
+                    $pdata["user_type"],
+                    $pdata["profile_photo"],
+                );
+
+
                 if (mysqli_stmt_execute($ins)) {
                     $new_user_id = mysqli_insert_id($conn);
+
 
                     if ($pdata['user_type'] === 'student') {
                         $s = mysqli_prepare($conn,
                             "INSERT INTO student_profiles (user_id, matric_number) VALUES (?,?)"
                         );
                         mysqli_stmt_bind_param($s, "is", $new_user_id, $extra['matric_number']);
+
+
+                    if ($pdata['user_type']==='student') {
+                        $s=mysqli_prepare($conn,"INSERT INTO student_profiles (user_id,matric_number) VALUES (?,?)");
+                        mysqli_stmt_bind_param($s,"is",$new_user_id,$extra['matric_number']);
+
                         mysqli_stmt_execute($s);
 
                     } elseif ($pdata['user_type'] === 'graduate') {
                         $g = mysqli_prepare($conn,
                             "INSERT INTO graduate_profiles
+
                              (user_id, job_status, company, job_title, salary_range,
                               education_level, field_of_study, graduation_year,
                               linkedin_url, bio, skills)
@@ -129,9 +264,89 @@ if (isset($_POST['verify_otp'])) {
                             $extra['linkedin_url']    ?? '',
                             $extra['bio']             ?? '',
                             $extra['skills']          ?? ''
+
+                             (user_id,job_status,company,job_title,salary_range,education_level,field_of_study,graduation_year,linkedin_url,bio,skills)
+                             VALUES (?,?,?,?,?,?,?,?,?,?,?)");
+                        $gy=!empty($extra['graduation_year'])?$extra['graduation_year']:null;
+
+                        $job_status = $extra['job_status'] ?? 'unemployed';
+                        $company = $extra['company'] ?? '';
+                        $job_title = $extra['job_title'] ?? '';
+                        $salary_range = $extra['salary_range'] ?? '';
+                        $education_level = $extra['education_level'] ?? 'bachelor';
+                        $field_of_study = $extra['field_of_study'] ?? '';
+                        $linkedin_url = $extra['linkedin_url'] ?? '';
+                        $bio = $extra['bio'] ?? '';
+                        $skills = $extra['skills'] ?? '';
+
+                        mysqli_stmt_bind_param($g,"issssssssss",
+
+                    if ($pdata["user_type"] === "student") {
+                        $s = mysqli_prepare(
+                            $conn,
+                            "INSERT INTO student_profiles (user_id, matric_number) VALUES (?,?)",
                         );
+                        mysqli_stmt_bind_param(
+                            $s,
+                            "is",
+                            $new_user_id,
+                            $extra["matric_number"],
+                        );
+                        mysqli_stmt_execute($s);
+                    } elseif ($pdata["user_type"] === "graduate") {
+                        //check if user who entered OTP is graduate
+                        $g = mysqli_prepare(
+                            //
+                            $conn, //
+                            "INSERT INTO graduate_profiles
+                             (user_id, job_status, company, job_title, salary_range,
+                              education_level, field_of_study, graduation_year,
+                              linkedin_url, bio, skills)
+                             VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                        );
+
+                        // Modified graduate info code so that profile.php graduate user can sign in without error (by ashlee)
+                        $job_status = $extra["job_status"] ?? "unemployed";
+                        $company = $extra["company"] ?? "";
+                        $job_title = $extra["job_title"] ?? "";
+                        $salary_range = $extra["salary_range"] ?? "";
+                        $education_level =
+                            $extra["education_level"] ?? "bachelor";
+                        $field_of_study = $extra["field_of_study"] ?? "";
+                        $graduation_year = $extra["graduation_year"]
+                            ? $extra["graduation_year"]
+                            : null;
+                        $linkedin_url = $extra["linkedin_url"] ?? "";
+                        $bio = $extra["bio"] ?? "";
+                        $skills = $extra["skills"] ?? "";
+
+                        mysqli_stmt_bind_param(
+                            $g,
+                            "issssssssss",
+
+                            $new_user_id,
+                            $job_status,
+                            $company,
+                            $job_title,
+                            $salary_range,
+                            $education_level,
+                            $field_of_study,
+
+                            $gy,
+                            $linkedin_url,
+                            $bio,
+                            $skills
+
+                            $graduation_year,
+                            $linkedin_url,
+                            $bio,
+                            $skills,
+
+                        );
+
                         mysqli_stmt_execute($g);
                     }
+
 
                     // Auto-join default subs
                     $subs = mysqli_query($conn, "SELECT id FROM subcommunities LIMIT 3");
@@ -140,6 +355,13 @@ if (isset($_POST['verify_otp'])) {
                             "INSERT IGNORE INTO sub_memberships (user_id, sub_id) VALUES (?,?)"
                         );
                         mysqli_stmt_bind_param($jn, "ii", $new_user_id, $sub['id']);
+
+                    //auto join some subs for demo
+                    $subs=mysqli_query($conn,"SELECT id FROM subcommunities LIMIT 3");
+                    while($sub=mysqli_fetch_assoc($subs)){
+                        $jn=mysqli_prepare($conn,"INSERT IGNORE INTO sub_memberships (user_id,sub_id) VALUES (?,?)");
+                        mysqli_stmt_bind_param($jn,"ii",$new_user_id,$sub['id']);
+
                         mysqli_stmt_execute($jn);
                     }
 
@@ -150,8 +372,49 @@ if (isset($_POST['verify_otp'])) {
                     mysqli_stmt_bind_param($del, "s", $email);
                     mysqli_stmt_execute($del);
 
+
                     unset($_SESSION['otp_email'], $_SESSION['reg_username'],
                           $_SESSION['reg_email'], $_SESSION['reg_pass'], $_SESSION['reg_auto_type']);
+
+                    unset($_SESSION['otp_email'],$_SESSION['reg_username'],
+                          $_SESSION['reg_email'],$_SESSION['reg_pass'],$_SESSION['reg_auto_type'],
+                          $_SESSION['reg_kyc_pending']);
+
+                    // Auto-join default subs
+                    $subs = mysqli_query(
+                        $conn,
+                        "SELECT id FROM subcommunities LIMIT 3",
+                    );
+                    while ($sub = mysqli_fetch_assoc($subs)) {
+                        $jn = mysqli_prepare(
+                            $conn,
+                            "INSERT IGNORE INTO sub_memberships (user_id, sub_id) VALUES (?,?)",
+                        );
+                        mysqli_stmt_bind_param(
+                            $jn,
+                            "ii",
+                            $new_user_id,
+                            $sub["id"],
+                        );
+                        mysqli_stmt_execute($jn);
+                    }
+
+                    // Delete pending record
+                    $del = mysqli_prepare(
+                        $conn,
+                        "DELETE FROM pending_registrations WHERE email=?",
+                    );
+                    mysqli_stmt_bind_param($del, "s", $email);
+                    mysqli_stmt_execute($del);
+
+                    unset(
+                        $_SESSION["otp_email"],
+                        $_SESSION["reg_username"],
+                        $_SESSION["reg_email"],
+                        $_SESSION["reg_pass"],
+                        $_SESSION["reg_auto_type"],
+                    );
+
 
                     header("Location: login.php?registered=1");
                     exit();
@@ -167,7 +430,14 @@ if (isset($_POST['verify_otp'])) {
     }
 }
 
+
 $masked_email = preg_replace('/(?<=.{2}).(?=.*@)/', '*', $email);
+
+
+$masked = preg_replace('/(?<=.{2}).(?=.*@)/','*',$email);
+
+$masked_email = preg_replace("/(?<=.{2}).(?=.*@)/", "*", $email);
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -230,6 +500,7 @@ $masked_email = preg_replace('/(?<=.{2}).(?=.*@)/', '*', $email);
   <div class="auth-page">
     <div class="auth-brand">ScholarSpace</div>
 
+
     <div class="auth-card" style="max-width:400px; text-align:center;">
       <div style="font-size:48px; margin-bottom:12px;">📬</div>
       <h2 class="auth-card-title">Check Your Email</h2>
@@ -237,6 +508,19 @@ $masked_email = preg_replace('/(?<=.{2}).(?=.*@)/', '*', $email);
         We sent a 6-digit code to<br>
         <strong style="color:var(--text-main);"><?php echo htmlspecialchars($masked_email); ?></strong>
       </p>
+
+    <form method="POST" action="verify_otp.php" id="otpForm">
+      <input type="hidden" name="verify_otp" value="1">
+      <div class="otp-inputs">
+        <?php for($i=1;$i<=6;$i++): ?>
+        <input type="text" name="d<?php echo $i; ?>" id="d<?php echo $i; ?>"
+               maxlength="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+        <?php endfor; ?>
+      </div>
+      <div class="countdown" id="countdown">Code expires in <span id="timer">10:00</span></div>
+      <button type="submit" class="btn btn-primary">Verify →</button>
+    </form>
+
 
       <?php if ($error):   ?><div class="error-msg"><?php echo htmlspecialchars($error); ?></div><?php endif; ?>
       <?php if ($success): ?><div class="success-msg"><?php echo htmlspecialchars($success); ?></div><?php endif; ?>
@@ -265,10 +549,62 @@ $masked_email = preg_replace('/(?<=.{2}).(?=.*@)/', '*', $email);
         <button type="submit" class="btn btn-primary">Verify →</button>
       </form>
 
+    </div>
+    <div class="auth-links" style="margin-top:16px;">
+      <a href="register.php">← Back to registration</a>
+
+    <div class="auth-card" style="max-width:400px; text-align:center;">
+      <div style="font-size:48px; margin-bottom:12px;">📬</div>
+      <h2 class="auth-card-title">Check Your Email</h2>
+      <p style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">
+        We sent a 6-digit code to<br>
+        <strong style="color:var(--text-main);"><?php echo htmlspecialchars(
+            $masked_email,
+        ); ?></strong>
+      </p>
+
+      <?php if ($error): ?><div class="error-msg"><?php echo htmlspecialchars(
+    $error,
+); ?></div><?php endif; ?>
+      <?php if (
+          $success
+      ): ?><div class="success-msg"><?php echo htmlspecialchars(
+    $success,
+); ?></div><?php endif; ?>
+
+      <?php if (isset($_GET["mail_error"])): ?>
+        <div class="error-msg" style="font-size:12px;">
+          ⚠️ Could not send email. Open <strong>mailer.php</strong> and fill in your Gmail + App Password, then resend.
+        </div>
+      <?php endif; ?>
+
+      <!-- OTP form -->
+      <form method="POST" action="verify_otp.php" id="otpForm">
+        <input type="hidden" name="verify_otp" value="1">
+        <input type="hidden" name="email_hidden" value="<?php echo htmlspecialchars(
+            $email,
+        ); ?>">
+
+        <div class="otp-inputs">
+          <?php for ($i = 1; $i <= 6; $i++): ?>
+            <input type="text" name="d<?php echo $i; ?>" id="d<?php echo $i; ?>"
+                   maxlength="1" inputmode="numeric" pattern="[0-9]"
+                   autocomplete="off">
+          <?php endfor; ?>
+        </div>
+
+        <div class="countdown" id="countdown">Code expires in <span id="timer">10:00</span></div>
+
+        <button type="submit" class="btn btn-primary">Verify →</button>
+      </form>
+
+
       <div style="margin-top:16px;">
         <form method="POST" action="verify_otp.php" style="display:inline;">
           <input type="hidden" name="resend_otp" value="1">
-          <input type="hidden" name="email_hidden" value="<?php echo htmlspecialchars($email); ?>">
+          <input type="hidden" name="email_hidden" value="<?php echo htmlspecialchars(
+              $email,
+          ); ?>">
           <button type="submit" class="resend-link" id="resendBtn" disabled>Resend code</button>
         </form>
       </div>
@@ -276,7 +612,7 @@ $masked_email = preg_replace('/(?<=.{2}).(?=.*@)/', '*', $email);
       <div class="auth-links" style="margin-top:16px;">
         <a href="register.php">← Back to registration</a>
       </div>
-    </div>
+</div>
   </div>
 
 <script>
