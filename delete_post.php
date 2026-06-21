@@ -1,78 +1,56 @@
 <?php
-
 session_start();
 include "db.php";
+header('Content-Type: application/json');
 
-if(!isset($_SESSION['user_id']))
-{
-    exit("Login required");
+if (!isset($_SESSION['user_id'])) {
+    echo json_encode(['success' => false, 'error' => 'Not logged in']);
+    exit();
 }
 
-$user_id = $_SESSION['user_id'];
-$post_id = intval($_POST['post_id']);
+$user_id   = $_SESSION['user_id'];
+$user_type = $_SESSION['user_type'];
+$post_id   = (int)($_GET['id'] ?? 0);
+$action    = $_GET['action'] ?? 'delete'; 
 
-$post_query = "SELECT user_id, sub_id FROM posts WHERE id=?";
-$post_stmt = mysqli_prepare($conn, $post_query);
-mysqli_stmt_bind_param($post_stmt, "i", $post_id);
-mysqli_stmt_execute($post_stmt);
-$post_result = mysqli_stmt_get_result($post_stmt);
-$post = mysqli_fetch_assoc($post_result);
-
-if(!$post)
-{
-    exit("Post not found");
+if (!$post_id) {
+    echo json_encode(['success' => false, 'error' => 'Invalid post ID']);
+    exit();
 }
 
-$isOwner = $post['user_id'] == $user_id;
-$isAdmin = ($_SESSION['role'] ?? '') === 'admin';
+$post = mysqli_fetch_assoc(mysqli_query($conn,
+    "SELECT id, user_id FROM posts WHERE id = $post_id AND is_removed = 0 LIMIT 1"));
 
-// Check if user is a moderator of this post's subcommunity
-$isModerator = false;
-$mod_query = "SELECT role FROM sub_memberships WHERE user_id = ? AND sub_id = ?";
-$mod_stmt = mysqli_prepare($conn, $mod_query);
-mysqli_stmt_bind_param($mod_stmt, "ii", $user_id, $post['sub_id']);
-mysqli_stmt_execute($mod_stmt);
-$mod_result = mysqli_stmt_get_result($mod_stmt);
-if ($mod_row = mysqli_fetch_assoc($mod_result)) {
-    $isModerator = ($mod_row['role'] === 'moderator');
+if (!$post) {
+    echo json_encode(['success' => false, 'error' => 'Post not found']);
+    exit();
 }
 
-if(!$isOwner && !$isAdmin && !$isModerator)
-{
-    exit("Unauthorized");
-}
-
-/*
-Soft delete post
-*/
-try {
-    $delete_query = "UPDATE posts SET is_removed = 1 WHERE id=?";
-    $delete_stmt = mysqli_prepare($conn, $delete_query);
-    mysqli_stmt_bind_param($delete_stmt, "i", $post_id);
-
-    if (mysqli_stmt_execute($delete_stmt)) {
-        echo "success";
+if ($action === 'delete') {
+    if ((int)$post['user_id'] !== (int)$user_id) {
+        echo json_encode(['success' => false, 'error' => 'You can only delete your own posts']);
+        exit();
+    }
+    $del = mysqli_query($conn, "DELETE FROM posts WHERE id = $post_id AND user_id = $user_id");
+    if ($del) {
+        echo json_encode(['success' => true]);
     } else {
-        echo "Delete failed";
+        echo json_encode(['success' => false, 'error' => mysqli_error($conn)]);
     }
 
-    // Soft delete all comments under this post
-    $comment_query = "
-        UPDATE comments
-        SET is_removed = 1
-        WHERE post_id = ?
-    ";
-
-    $comment_stmt = mysqli_prepare($conn, $comment_query);
-    mysqli_stmt_bind_param($comment_stmt, "i", $post_id);
-
-    if (!mysqli_stmt_execute($comment_stmt)) {
-        throw new Exception("Failed to delete comments");
+} elseif ($action === 'remove') {
+    if ($user_type !== 'admin') {
+        echo json_encode(['success' => false, 'error' => 'Admin access required']);
+        exit();
     }
-} catch (Exception $e) 
-{
-    mysqli_rollback($conn);
-    echo "Delete failed";
+    $rem = mysqli_query($conn, "UPDATE posts SET is_removed = 1 WHERE id = $post_id");
+    if ($rem) {
+        echo json_encode(['success' => true]);
+    } else {
+        echo json_encode(['success' => false, 'error' => mysqli_error($conn)]);
+    }
+
+} else {
+    echo json_encode(['success' => false, 'error' => 'Invalid action']);
 }
-
-mysqli_close($conn);
+?>

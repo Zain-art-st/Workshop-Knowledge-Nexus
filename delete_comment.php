@@ -56,7 +56,7 @@ if(!$comment)
 mysqli_stmt_close($check_stmt);
 
 $isOwner = $comment["user_id"] == $user_id;
-$isAdmin = ($_SESSION['role'] ?? '') === 'admin';
+$isAdmin = ($_SESSION['user_type'] ?? '') === 'admin';
 
 // Check if user is a moderator of the subcommunity this comment's post belongs to
 $isModerator = false;
@@ -79,7 +79,7 @@ if(!$isOwner && !$isAdmin && !$isModerator)
     exit();
 }
 
-// Soft delete
+// Soft delete comment AND any replies under it
 $remove_query = "UPDATE comments SET is_removed = 1 WHERE id = ? OR parent_id = ?";
 $remove_stmt = mysqli_prepare($conn, $remove_query);
 mysqli_stmt_bind_param($remove_stmt, "ii", $comment_id, $comment_id);

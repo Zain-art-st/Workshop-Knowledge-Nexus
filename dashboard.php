@@ -176,13 +176,13 @@ function ava($photo,$name,$size=32){
           <button class="post-more" onclick="togglePostMenu('dpm<?php echo $p['id']; ?>', event)">⋯</button>
             <div class="post-more-menu" id="dpm<?php echo $p['id']; ?>">
               <?php if ($user_id != $p['user_id']): ?>
-              <a href="#" onclick="reportPost(<?php echo $p['id']; ?>);return false;" class="danger">🚩 Report</a>
+              <a href="#" onclick="reportPost(<?php echo $p['id']; ?>);return false;" class="danger">🚩 Report Post</a>
               <?php endif; ?>
               <?php if ($user_id == $p['user_id']): ?>
-              <a href="#" onclick="alert('Edit coming soon!');return false;">✏️ Edit Post</a>
+              <a href="#" onclick="deletePost(<?php echo $p['id']; ?>);return false;" class="danger">🗑 Delete Post</a>
               <?php endif; ?>
-              <?php if ($user_type === 'admin'): ?>
-              <button class="danger" onclick="reportPost(<?php echo $p['id']; ?>)">🗑 Remove Post</button>
+              <?php if ($user_type === 'admin' && $user_id != $p['user_id']): ?>
+              <button class="danger" onclick="adminRemovePost(<?php echo $p['id']; ?>)">🗑 Remove Post</button>
               <?php endif; ?>
             </div>
         </div>
@@ -414,6 +414,39 @@ function vote(id,dir,btn){
 function copyLink(id){navigator.clipboard.writeText(location.origin+location.pathname.replace('dashboard.php','')+'post.php?id='+id).then(()=>alert('Link copied!'));}
 function reportPost(id){const reason=prompt('Reason for reporting:');if(!reason)return;fetch('report.php?type=post&id='+id+'&reason='+encodeURIComponent(reason)).then(r=>r.json()).then(d=>alert(d.message||'Reported.'));}
 
+function deletePost(id) {
+  if (!confirm('Delete this post? This cannot be undone.')) return;
+  fetch('delete_post.php?id='+id+'&action=delete')
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        // Remove card from DOM instantly
+        const card = document.getElementById('dpm'+id)?.closest('.post-card');
+        if (card) card.style.transition='opacity .3s', card.style.opacity='0',
+          setTimeout(() => card.remove(), 300);
+      } else {
+        alert(data.error || 'Could not delete post.');
+      }
+    })
+    .catch(() => alert('Network error. Please try again.'));
+}
+
+function adminRemovePost(id) {
+  if (!confirm('Remove this post as admin? The post will be hidden from all users.')) return;
+  fetch('delete_post.php?id='+id+'&action=remove')
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        const card = document.getElementById('dpm'+id)?.closest('.post-card');
+        if (card) card.style.transition='opacity .3s', card.style.opacity='0',
+          setTimeout(() => card.remove(), 300);
+      } else {
+        alert(data.error || 'Could not remove post.');
+      }
+    })
+    .catch(() => alert('Network error. Please try again.'));
+}
+
 //Document modal
 let docQuill = null;
 let docIsDirty = false;
@@ -528,16 +561,15 @@ function exportDocPDF() {
   if (!docQuill) return;
   const title   = document.getElementById('docTitle').value || 'Untitled Document';
   const content = docQuill.root.innerHTML;
-
-  // Populate hidden print area
+  
   document.getElementById('docPrintTitle').textContent  = title;
   document.getElementById('docPrintContent').innerHTML  = content;
   document.getElementById('docPrintArea').style.display = 'block';
 
-  // Trigger print dialog
+  // print dialog
   window.print();
 
-  // Hide print area after
+  // Hide print area 
   setTimeout(() => {
     document.getElementById('docPrintArea').style.display = 'none';
   }, 1000);
@@ -583,7 +615,7 @@ document.addEventListener('click', e => {
 
 //Share document
 async function openSharePanel() {
-  // If doc hasn't been saved yet, save it first to get a doc_id
+  // save it first to get a doc_id
   if (!docCurrentId) {
     if (!docQuill || !docQuill.getText().trim()) {
       alert('Please write something before sharing.');
@@ -676,10 +708,9 @@ document.addEventListener('click', e => {
   }
 });
 
-//warn if dirty
+//warn dirty
 window.addEventListener('beforeunload', e => {
   if (docIsDirty) { e.preventDefault(); e.returnValue = ''; }
 });
 </script>
-</body>
-</html>
+</body></html>

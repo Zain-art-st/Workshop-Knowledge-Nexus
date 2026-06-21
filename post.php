@@ -60,12 +60,22 @@ if (isset($_POST['submit_comment']) && $can_comment) {
 }
 
 // Moderation handling - removal of target comments
-if (isset($_POST['remove_comment']) && ($is_moderator || $is_admin)) {
+if (isset($_POST['remove_comment'])) {
     $cid = (int)($_POST['comment_id'] ?? 0);
     if ($cid) {
-        mysqli_query($conn, "UPDATE comments SET is_removed = 1 WHERE id = $cid");
+        // Fetch comment to check ownership
+        $chk = mysqli_fetch_assoc(mysqli_query($conn,
+            "SELECT user_id FROM comments WHERE id=$cid LIMIT 1"));
+        $is_comment_owner = $chk && ((int)$chk['user_id'] === $user_id);
+
+        // Allow: comment owner, sub moderator, or admin
+        if ($is_comment_owner || $is_moderator || $is_admin) {
+            // Soft delete comment and any replies
+            mysqli_query($conn,
+                "UPDATE comments SET is_removed=1 WHERE id=$cid OR parent_id=$cid");
+        }
     }
-    header("Location: post.php?id=$post_id"); 
+    header("Location: post.php?id=$post_id");
     exit();
 }
 
