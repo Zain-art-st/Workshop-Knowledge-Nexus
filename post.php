@@ -154,25 +154,23 @@ function renderCommentAvatar($photo, $name, $size = 32) {
     .post-full-sub:hover { color: var(--accent); }
     .post-full-title {
       font-family: var(--font-display); font-size: 22px; font-weight: 800;
-      padding: 0 20px 12px; line-height: 1.4;
+      padding: 0 20px 12px; line-height: 1.4; overflow-wrap: break-word; 
+      word-wrap: break-word; word-break: break-word;
     }
-    .post-full-content {
-      padding: 0 20px 16px; font-size: 15px; line-height: 1.8;
-      color: #000000; font-weight: bold; white-space: pre-wrap;
-    }
+
     .post-full-image {
-      width: calc(100% - 40px); margin: 0 20px 16px;
+      width: calc(100% - 40px); margin: 30px 20px 16px;
       border-radius: 12px; max-height: 500px; object-fit: cover; display: block;
     }
     .post-full-link {
-      margin: 0 20px 16px; padding: 12px 16px;
+      margin: 30px 20px 16px; padding: 12px 16px;
       background: rgba(79,142,247,.08); border: 1px solid rgba(79,142,247,.2);
       border-radius: 10px; font-size: 13px; color: var(--accent);
       text-decoration: none; display: flex; align-items: center; gap: 8px;
       word-break: break-all;
     }
     .post-full-file {
-      margin: 0 20px 16px; padding: 14px 16px;
+      margin: 30px 20px 16px; padding: 14px 16px;
       background: rgba(255,255,255,.05); border: 1px solid var(--card-border);
       border-radius: 10px; display: flex; align-items: center; gap: 12px;
     }
@@ -187,6 +185,16 @@ function renderCommentAvatar($photo, $name, $size = 32) {
     .post-full-actions {
       padding: 12px 16px; border-top: 1px solid var(--card-border);
       display: flex; align-items: center; gap: 8px;
+    }
+
+    .post-media-caption, .post-full-content {
+      margin:-6px 20px 18px;
+      color:var(--text-muted);
+      font-size:14px;
+      line-height:1.7;
+      overflow-wrap: break-word; 
+      word-wrap: break-word; 
+      word-break: break-word;
     }
 
     /* Quill Editor Engine Classes Injection styles */
@@ -313,24 +321,44 @@ function renderCommentAvatar($photo, $name, $size = 32) {
       <div class="post-full-title"><?php echo htmlspecialchars($post['title']); ?></div>
 
       <?php
-        $content = $post['content'] ?? '';
-        $is_rich = !empty($content) && (strpos($content, '<p>') !== false || strpos($content, '<h') !== false);
+      $content = explode("\n\n", $post['content'] ?? '');
+
+      $text_caption = $content[0] ?? '';
+      $image_caption = $content[1] ?? '';
+      $link_caption = $content[2] ?? '';
+      $doc_caption = $content[3] ?? '';
       ?>
 
-      <?php if (!empty($content) && $is_rich): ?>
-        <div class="post-rich-content"><?php echo $content; ?></div>
-      <?php elseif (!empty($content)): ?>
-        <div class="post-full-content"><?php echo htmlspecialchars($content); ?></div>
+      <?php if (!empty($text_caption)): ?>
+      <div class="post-full-content">
+          <?php echo nl2br(htmlspecialchars($text_caption)); ?>
+      </div>
       <?php endif; ?>
 
       <?php if (!empty($post['image_url'])): ?>
-        <img src="<?php echo htmlspecialchars($post['image_url']); ?>" class="post-full-image" alt="">
+      <img src="<?php echo htmlspecialchars($post['image_url']) ?>" class="post-full-image">
+
+      <?php if (!empty($image_caption)): ?>
+      <div class="post-media-caption">
+      <?php echo nl2br(htmlspecialchars($image_caption)) ?>
+      </div>
+      <?php endif; ?>
+
       <?php endif; ?>
 
       <?php if (!empty($post['link_url'])): ?>
-        <a href="<?php echo htmlspecialchars($post['link_url']); ?>" target="_blank" class="post-full-link">
-          <?php echo htmlspecialchars($post['link_url']); ?>
-        </a>
+      <a href="<?php echo htmlspecialchars($post['link_url']) ?>"
+      target="_blank"
+      class="post-full-link">
+      <?php echo htmlspecialchars($post['link_url']) ?>
+      </a>
+
+      <?php if (!empty($link_caption)): ?>
+      <div class="post-media-caption">
+      <?php echo nl2br(htmlspecialchars($link_caption)) ?>
+      </div>
+      <?php endif; ?>
+
       <?php endif; ?>
 
       <?php if (!empty($post['file_url'])): ?>
@@ -353,6 +381,11 @@ function renderCommentAvatar($photo, $name, $size = 32) {
         </div>
         <a href="<?php echo htmlspecialchars($post['file_url']); ?>" download class="post-full-file-dl">⬇ Download</a>
       </div>
+      <?php if (!empty($doc_caption)): ?>
+        <div class="post-media-caption">
+        <?php echo nl2br(htmlspecialchars($doc_caption)) ?>
+        </div>
+      <?php endif; ?>
       <?php endif; ?>
 
       <div class="post-full-actions">

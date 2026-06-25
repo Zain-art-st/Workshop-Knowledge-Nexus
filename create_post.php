@@ -63,7 +63,22 @@ function handleUpload($file, $type) {
 if (isset($_POST['submit_post'])) {
     $sub_id  = (int)($_POST['sub_id']    ?? 0);
     $title   = trim($_POST['title']      ?? '');
-    $content = trim($_POST['content']    ?? '');
+    $content_parts = [];
+
+    $fields = [
+      'content',
+      'image_caption',
+      'link_description',
+      'document_description'
+    ];
+
+    foreach ($fields as $field) {
+      if (!empty($_POST[$field])) {
+        $content_parts[] = trim($_POST[$field]);
+      }
+    }
+
+  $content = implode("\n\n", $content_parts);
     $link    = trim($_POST['link_url']   ?? '');
     $tab     = $_POST['active_tab']      ?? 'text';
 
@@ -88,21 +103,32 @@ if (isset($_POST['submit_post'])) {
             $image_url = null;
             $file_url  = null;
 
-            if ($tab === 'image' && !empty($_FILES['image']['name'])) {
-                $res = handleUpload($_FILES['image'], 'image');
-                if (isset($res['error']))  { $error = $res['error']; }
-                elseif(isset($res['path'])){ $image_url = $res['path']; }
-            }
-            if (!$error && $tab === 'doc' && !empty($_FILES['document']['name'])) {
-                $res = handleUpload($_FILES['document'], 'doc');
-                if (isset($res['error']))  { $error = $res['error']; }
-                elseif(isset($res['path'])){ $file_url = $res['path']; }
-            }
-            if (!$error && $tab === 'link') {
-                $link = !empty($link) ? $link : null;
-            } else {
-                $link = null;
-            }
+        /* Upload image regardless of tab */
+        if (!empty($_FILES['image']['name'])) {
+          $res = handleUpload($_FILES['image'], 'image');
+
+          if (isset($res['error'])) {
+            $error = $res['error'];
+          } else {
+            $image_url = $res['path'];
+          }
+        }
+
+        /* Upload document regardless of tab */
+        if (!$error && !empty($_FILES['document']['name'])) {
+          $res = handleUpload($_FILES['document'], 'doc');
+
+          if (isset($res['error'])) {
+            $error = $res['error'];
+          } else {
+            $file_url = $res['path'];
+          }
+        }
+
+        /* Save link if entered */
+        $link = !empty(trim($_POST['link_url'] ?? ''))
+          ? trim($_POST['link_url'])
+          : null;
 
             if (!$error) {
                 $ins = mysqli_prepare($conn,
@@ -270,11 +296,10 @@ if (!in_array($active_tab, ['text','image','link','doc','rich'])) $active_tab = 
 
       <div class="post-compose">
         <!-- title shared across all-->
-        <input type="text" name="title" class="post-compose-title"
-               placeholder="Title *" maxlength="300" required
-               oninput="document.getElementById('titleCount').textContent=this.value.length"
-               value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>">
-        <div class="char-count-title"><span id="titleCount"><?php echo strlen($_POST['title']??''); ?></span> / 300</div>
+        <input type="text" name="title" id="postTitle" class="post-compose-title"
+        placeholder="Title *" maxlength="300" required 
+        value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>">
+        <div class="char-count-title"><span id="titleCount">0</span> / 300</div>
 
         <!--text.just text.-->
         <div class="post-type-pane <?php echo $active_tab==='text'?'active':''; ?>" id="pane-text">
@@ -284,7 +309,7 @@ if (!in_array($active_tab, ['text','image','link','doc','rich'])) $active_tab = 
 
         <!--clikc images-->
         <div class="post-type-pane <?php echo $active_tab==='image'?'active':''; ?>" id="pane-image">
-          <textarea name="content" class="post-compose-body" style="min-height:80px;"
+          <textarea name="image_caption" class="post-compose-body" style="min-height:80px;"
                     placeholder="Caption (optional)"><?php echo htmlspecialchars($_POST['content'] ?? ''); ?></textarea>
           <div class="upload-zone" id="imgZone">
             <input type="file" name="image" accept="image/*" onchange="previewImg(this)">
@@ -299,7 +324,7 @@ if (!in_array($active_tab, ['text','image','link','doc','rich'])) $active_tab = 
 
         <!--link url-->
         <div class="post-type-pane <?php echo $active_tab==='link'?'active':''; ?>" id="pane-link">
-          <textarea name="content" class="post-compose-body" style="min-height:80px;"
+          <textarea name="link_description" class="post-compose-body" style="min-height:80px;"
                     placeholder="Describe this link (optional)"></textarea>
           <div style="padding:0 16px 16px;">
             <div class="form-group" style="margin-bottom:0;">
@@ -312,7 +337,7 @@ if (!in_array($active_tab, ['text','image','link','doc','rich'])) $active_tab = 
 
         <!--document upload-->
         <div class="post-type-pane <?php echo $active_tab==='doc'?'active':''; ?>" id="pane-doc">
-          <textarea name="content" class="post-compose-body" style="min-height:80px;"
+          <textarea name="document_description" class="post-compose-body" style="min-height:80px;"
                     placeholder="Describe the document (optional)"></textarea>
           <div class="upload-zone" id="docZone">
             <input type="file" name="document"
@@ -385,6 +410,20 @@ function previewDoc(input) {
   document.getElementById('fileInfoBar').classList.add('show');
   document.getElementById('docPlaceholder').style.display = 'none';
 }
+
+// title character counter
+const titleInput = document.getElementById("postTitle");
+const titleCount = document.getElementById("titleCount");
+
+function updateTitleCount() 
+{
+    titleCount.textContent = titleInput.value.length;
+}
+
+titleInput.addEventListener("input", updateTitleCount);
+
+// run once after page loads
+updateTitleCount();
 </script>
 </body>
 </html>

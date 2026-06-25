@@ -259,6 +259,20 @@ function fileIcon($ext){$m=['pdf'=>'📕','doc'=>'📘','docx'=>'📘','ppt'=>'�
     }
     .modal-box h3 { font-family:var(--font-display); font-size:18px; font-weight:700; margin-bottom:8px; }
     .modal-box p  { font-size:13px; color:var(--text-muted); margin-bottom:16px; }
+
+    .post-title {
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        word-break: break-word;
+    }
+
+    .post-snippet {
+        padding: 0 16px 12px;
+        line-height: 1.7;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        word-break: break-word;
+    }
   </style>
 </head>
 <body>
@@ -407,11 +421,13 @@ function fileIcon($ext){$m=['pdf'=>'📕','doc'=>'📘','docx'=>'📘','ppt'=>'�
           <a href="post.php?id=<?php echo $p['id']; ?>" style="text-decoration:none;display:block;">
             <div class="post-title"><?php echo htmlspecialchars($p['title']); ?></div>
             <?php if (!empty($p['content'])): ?>
+            <?php
+            $contentParts = explode("\n\n", strip_tags($p['content']));
+            $preview = $contentParts[0] ?? '';
+            ?>
             <div class="post-snippet">
-              <?php
-              $plain = strip_tags($p['content']);
-              echo htmlspecialchars(mb_substr($plain,0,220)) . (mb_strlen($plain)>220?'…':'');
-              ?>
+            <?php echo htmlspecialchars(mb_substr($preview,0,220)) ?>
+            <?php echo mb_strlen($preview)>220 ? '…' : '' ?>
             </div>
             <?php endif; ?>
             <?php if (!empty($p['image_url'])): ?>

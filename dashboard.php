@@ -52,6 +52,12 @@ function ava($photo,$name,$size=32){
         return "<img src='$photo' alt='".htmlspecialchars($name)."' style='width:{$size}px;height:{$size}px;border-radius:50%;object-fit:cover;display:block;'>";
     return "<span style='font-size:{$fs}px;font-weight:700;color:#fff;'>$init</span>";
 }
+
+function fileIcon($ext)
+{
+  $m = ['pdf' => '📕', 'doc' => '📘', 'docx' => '📘', 'ppt' => '📙', 'pptx' => '📙', 'xls' => '📗', 'xlsx' => '📗', 'txt' => '📄'];
+  return $m[strtolower($ext)] ?? '📄';
+}
 ?>
 
 <!DOCTYPE html>
@@ -61,11 +67,9 @@ function ava($photo,$name,$size=32){
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ScholarSpace</title>
   <link rel="stylesheet" href="styles.css">
-<title>ScholarSpace</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>ScholarSpace</title>
   <title>ScholarSpace</title>
   <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div class="stars-bg"></div>
@@ -188,7 +192,14 @@ function ava($photo,$name,$size=32){
         </div>
         <div class="post-title"><?php echo htmlspecialchars($p['title']); ?></div>
         <?php if(!empty($p['content'])): ?>
-        <div class="post-snippet"><?php echo htmlspecialchars(mb_substr($p['content'],0,220)).(mb_strlen($p['content'])>220?'…':''); ?></div>
+          <?php
+            $contentParts = explode("\n\n", strip_tags($p['content']));
+            $preview = $contentParts[0] ?? '';
+            ?>
+          <div class="post-snippet">
+            <?php echo htmlspecialchars(mb_substr($preview, 0, 220)) ?>
+            <?php echo mb_strlen($preview) > 220 ? '…' : '' ?>
+          </div>
         <?php endif; ?>
         <?php if(!empty($p['image_url'])): ?>
         <img src="<?php echo htmlspecialchars($p['image_url']); ?>" class="post-image" alt="">
@@ -199,6 +210,17 @@ function ava($photo,$name,$size=32){
           🔗 <?php echo htmlspecialchars($p['link_url']); ?>
         </a>
         <?php endif; ?>
+
+        <?php if (!empty($p['file_url'])): ?>
+          <div class="post-file-row">
+            <span><?php echo fileIcon(pathinfo($p['file_url'],PATHINFO_EXTENSION)); ?></span>
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">
+              <?php echo htmlspecialchars(basename($p['file_url'])); ?>
+            </span>
+            <a href="<?php echo htmlspecialchars($p['file_url']); ?>" download>⬇ Download</a>
+          </div>
+        <?php endif; ?>
+        
         <div class="post-actions">
           <div class="vote-group">
             <button class="vote-btn upvote" onclick="vote(<?php echo $p['id']; ?>,'up',this)">▲</button>
