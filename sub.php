@@ -99,6 +99,20 @@ $posts_res = mysqli_query($conn,
      ORDER BY p.created_at DESC LIMIT 30");
 $posts = mysqli_fetch_all($posts_res, MYSQLI_ASSOC);
 
+// Detect current user's vote state
+foreach ($posts as &$p) {
+  $up_users = json_decode($p['upvote_users'] ?? '[]', true);
+  $down_users = json_decode($p['downvote_users'] ?? '[]', true);
+
+  $up_users = is_array($up_users) ? $up_users : [];
+  $down_users = is_array($down_users) ? $down_users : [];
+
+  $p['user_upvoted'] = in_array($user_id, $up_users);
+  $p['user_downvoted'] = in_array($user_id, $down_users);
+}
+unset($p);
+
+
 /* ── member list for mod panel ─────────────────────────────── */
 $members_res = null;
 if ($is_moderator || $is_admin) {
@@ -273,6 +287,14 @@ function fileIcon($ext){$m=['pdf'=>'📕','doc'=>'📘','docx'=>'📘','ppt'=>'�
         overflow-wrap: break-word;
         word-wrap: break-word;
         word-break: break-word;
+    }
+
+    .vote-btn.upvote.active {
+    color: #3ecf8e !important;
+    }
+
+    .vote-btn.downvote.active {
+        color: #ff4f6a !important;
     }
   </style>
 </head>
@@ -453,12 +475,14 @@ function fileIcon($ext){$m=['pdf'=>'📕','doc'=>'📘','docx'=>'📘','ppt'=>'�
 
           <div class="post-actions">
             <div class="vote-group">
-              <button class="vote-btn upvote"   onclick="vote(<?php echo $p['id']; ?>,'up',this)">▲</button>
+              <button class="vote-btn upvote <?php echo $p['user_upvoted'] ? 'active' : ''; ?>"
+                onclick="vote(<?php echo $p['id']; ?>,'up',this)">▲</button>
               <?php
                 $vote_score = $p['upvotes'] - $p['downvotes'];
               ?>
               <span class="vote-count" id="vc-<?php echo $p['id']; ?>"><?php echo number_format($vote_score); ?></span>
-              <button class="vote-btn downvote" onclick="vote(<?php echo $p['id']; ?>,'down',this)">▼</button>
+              <button class="vote-btn downvote <?php echo $p['user_downvoted'] ? 'active' : ''; ?>"
+                onclick="vote(<?php echo $p['id']; ?>,'down',this)">▼</button>
             </div>
             <a href="post.php?id=<?php echo $p['id']; ?>" class="action-btn">
               💬 <?php echo $p['comment_count']; ?> Comments
@@ -602,12 +626,27 @@ function vote(id, dir, btn) {
   fetch('vote.php?post_id=' + id + '&dir=' + dir)
     .then(res => res.json())
     .then(d => {
-      if (
-        d.upvotes !== undefined &&
-        d.downvotes !== undefined
-      ) {
+      if (d.upvotes !== undefined && d.downvotes !== undefined) {
+
         document.getElementById('vc-' + id).textContent =
           d.upvotes - d.downvotes;
+
+        const group = btn.closest('.vote-group');
+        const up = group.querySelector('.upvote');
+        const down = group.querySelector('.downvote');
+
+        if (d.user_vote === 'up') {
+          up.classList.add('active');
+          down.classList.remove('active');
+        }
+        else if (d.user_vote === 'down') {
+          down.classList.add('active');
+          up.classList.remove('active');
+        }
+        else {
+          up.classList.remove('active');
+          down.classList.remove('active');
+        }
       }
     })
     .catch(err => console.log(err));

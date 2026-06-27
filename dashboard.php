@@ -24,14 +24,31 @@ if (empty($recent_visits)) {
 }
 
 // Posts feed
-$posts_res = mysqli_query($conn,
-    "SELECT p.*, u.username AS author, u.profile_photo AS author_photo,
+$posts_res = mysqli_query(
+  $conn,
+  "SELECT p.*, u.username AS author, u.profile_photo AS author_photo,
             s.name AS sub_name, s.id AS sub_id
      FROM posts p
      JOIN users u ON p.user_id=u.id
      JOIN subcommunities s ON p.sub_id=s.id
-     WHERE p.is_removed=0 ORDER BY p.created_at DESC LIMIT 20");
+     WHERE p.is_removed=0
+     ORDER BY p.created_at DESC
+     LIMIT 20"
+);
 $posts = mysqli_fetch_all($posts_res, MYSQLI_ASSOC);
+
+// Detect current user's vote state
+foreach ($posts as &$p) {
+  $up_users = json_decode($p['upvote_users'] ?? '[]', true);
+  $down_users = json_decode($p['downvote_users'] ?? '[]', true);
+
+  $up_users = is_array($up_users) ? $up_users : [];
+  $down_users = is_array($down_users) ? $down_users : [];
+
+  $p['user_upvoted'] = in_array($user_id, $up_users);
+  $p['user_downvoted'] = in_array($user_id, $down_users);
+}
+unset($p);
 
 $sub_icons = ['🖥️','📢','🐱','🔍','🤖','🧠','🔬','📚','🎮','💬','🎨','🌍','🏋️','🎵','📸'];
 function subIcon($n,$i){return $i[abs(crc32($n))%count($i)];}
@@ -68,8 +85,6 @@ function fileIcon($ext)
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ScholarSpace</title>
   <link rel="stylesheet" href="styles.css">
-  <title>ScholarSpace</title>
-  <title>ScholarSpace</title>
   <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
 </head>
 <body>
@@ -231,12 +246,16 @@ function fileIcon($ext)
         
         <div class="post-actions">
           <div class="vote-group">
-            <button class="vote-btn upvote" onclick="vote(<?php echo $p['id']; ?>,'up',this)">▲</button>
+            <button
+            class="vote-btn upvote <?php echo $p['user_upvoted'] ? 'active' : ''; ?>"
+            onclick="vote(<?php echo $p['id']; ?>,'up',this)">▲</button>
             <?php
               $vote_score = $p['upvotes'] - $p['downvotes'];
             ?>
             <span class="vote-count" id="vc-<?php echo $p['id']; ?>"><?php echo number_format($vote_score); ?></span>
-            <button class="vote-btn downvote" onclick="vote(<?php echo $p['id']; ?>,'down',this)">▼</button>
+            <button
+            class="vote-btn downvote <?php echo $p['user_downvoted'] ? 'active' : ''; ?>"
+            onclick="vote(<?php echo $p['id']; ?>,'down',this)">▼</button>
           </div>
           <a href="post.php?id=<?php echo $p['id']; ?>" class="action-btn">💬 <?php echo $total_comments; ?> Comments</a>
           <button class="action-btn" onclick="copyLink(<?php echo $p['id']; ?>)">↗ Share</button>
@@ -394,6 +413,14 @@ function fileIcon($ext)
     #docPrintArea h1 { font-size:22px; margin-bottom:16px; font-family:serif; }
     #docPrintTitle { font-size:22px; font-weight:bold; margin-bottom:20px; font-family:serif; }
   }
+
+  .vote-btn.upvote.active {
+    color: #3ecf8e;
+}
+
+.vote-btn.downvote.active {
+    color: #ff4f6a ;
+}
 </style>
 
 <div id="docPrintArea" style="display:none;">

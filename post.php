@@ -351,6 +351,24 @@ function renderCommentAvatar($photo, $name, $size = 32) {
     .reply-submit { padding: 5px 14px; background: var(--accent); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; font-family: var(--font-display); }
 
     .no-comments { text-align: center; padding: 40px 20px; background: var(--bg-card); border: 1px solid var(--card-border); border-radius: 14px; }
+
+    .vote-btn {
+        transition: .2s;
+    }
+
+    .vote-btn.active-up {
+        color: #22c55e;
+        background: rgba(34,197,94,.15);
+    }
+
+    .vote-btn.active-down {
+        color: #ef4444;
+        background: rgba(239,68,68,.15);
+    }
+
+    .vote-btn:hover {
+        transform: scale(1.05);
+    }
   </style>
 </head>
 <body>
@@ -454,14 +472,31 @@ function renderCommentAvatar($photo, $name, $size = 32) {
       <?php endif; ?>
       <?php endif; ?>
 
+      <?php
+      $post_up = json_decode($post['upvote_users'] ?? '[]', true);
+      $post_down = json_decode($post['downvote_users'] ?? '[]', true);
+
+      $post_up = is_array($post_up) ? $post_up : [];
+      $post_down = is_array($post_down) ? $post_down : [];
+
+      $post_upvoted = in_array($user_id, $post_up);
+
+      $post_downvoted = in_array($user_id, $post_down);
+      ?>
+
       <div class="post-full-actions">
         <div class="vote-group">
-          <button class="vote-btn upvote" onclick="votePost(<?php echo $post_id; ?>,'up',this)">▲</button>
+          <button class="vote-btn upvote <?php echo $post_upvoted ? 'active-up': '';?>"
+          onclick="votePost(<?php echo $post_id; ?>, 'up', this)">
+          ▲</button>
           <?php
           $vote_score = $post['upvotes'] - $post['downvotes'];
           ?>
           <span class="vote-count" id="vc-<?php echo $post_id; ?>"><?php echo number_format($vote_score); ?></span>
-          <button class="vote-btn downvote" onclick="votePost(<?php echo $post_id; ?>,'down',this)">▼</button>
+          <button class="vote-btn downvote <?php echo $post_downvoted ? 'active-down' : '';?>"
+          onclick="votePost(<?php echo $post_id; ?>, 'down', this)">
+          ▼
+          </button>
         </div>
         <span class="action-btn">💬 <?php echo $total_comments; ?> Comments</span>
         <button class="action-btn" onclick="copyLink()">↗ Share</button>
@@ -501,6 +536,13 @@ function renderCommentAvatar($photo, $name, $size = 32) {
       </div>
       <?php else: ?>
       <?php foreach ($comments as $c): ?>
+        <?php
+          $upUsers = json_decode($c['upvote_users'] ?? '[]', true);
+          $downUsers = json_decode($c['downvote_users'] ?? '[]', true);
+
+          $isUpvoted = in_array($user_id, $upUsers ?: []);
+          $isDownvoted = in_array($user_id, $downUsers ?: []);
+        ?>
       <div class="comment-card" id="c<?php echo $c['id']; ?>">
         <div class="comment-card-header">
           <div class="comment-avatar"><?php echo renderCommentAvatar($c['author_photo'], $c['author'], 32); ?></div>
@@ -516,23 +558,17 @@ function renderCommentAvatar($photo, $name, $size = 32) {
           <form method="POST" style="display:inline;">
             <input type="hidden" name="comment_id" value="<?php echo $c['id']; ?>">
             <div class="comment-vote-group">
-            <button type="submit"
-            name="vote_comment"
-            name="vote_dir"
-            value="up"
-            class="vote-btn upvote">
+            <button type="submit" name="vote_comment" value="up"
+            onclick="this.form.vote_dir.value='up'"
+            class="vote-btn upvote <?php echo $isUpvoted ? 'active-up' : ''; ?>">
             ▲
             </button>
 
             <span class="vote-count"><?php echo $c['upvotes'] - $c['downvotes']; ?></span>
 
-            <button type="submit"
-            name="vote_comment"
-            value="down"
-            onclick="
-            this.form.vote_dir.value='down'
-            "
-            class="vote-btn downvote">
+            <button type="submit" name="vote_comment" value="down"
+            onclick="this.form.vote_dir.value='down'"
+            class="vote-btn downvote <?php echo $isDownvoted ? 'active-down' : ''; ?>">
             ▼
             </button>
 
@@ -574,6 +610,13 @@ function renderCommentAvatar($photo, $name, $size = 32) {
         <?php if (!empty($replies_map[$c['id']])): ?>
         <div class="replies-section">
           <?php foreach ($replies_map[$c['id']] as $r): ?>
+            <?php
+              $replyUp = json_decode($r['upvote_users'] ?? '[]', true);
+              $replyDown = json_decode($r['downvote_users'] ?? '[]', true);
+
+              $replyUpvoted = in_array($user_id, $replyUp ?: []);
+              $replyDownvoted = in_array($user_id, $replyDown ?: []);
+            ?>
           <div class="reply-card" id="c<?php echo $r['id']; ?>">
             <div class="reply-line"></div>
             <div class="reply-body">
@@ -601,26 +644,19 @@ function renderCommentAvatar($photo, $name, $size = 32) {
                 <div class="comment-vote-group">
 
                 <button
-                type="submit"
-                name="vote_comment"
-                value="up"
+                type="submit" name="vote_comment" value="up"
                 onclick="this.form.vote_dir.value='up'"
-                class="vote-btn upvote">
-                ▲
-                </button>
+                class="vote-btn upvote <?php echo $replyUpvoted ? 'active-up' : ''; ?>">
+                ▲</button>
 
                 <span class="vote-count">
                 <?php echo $r['upvotes'] - $r['downvotes']; ?>
                 </span>
 
-                <button
-                type="submit"
-                name="vote_comment"
-                value="down"
+                <button type="submit" name="vote_comment" value="down"
                 onclick="this.form.vote_dir.value='down'"
-                class="vote-btn downvote">
-                ▼
-                </button>
+                class="vote-btn downvote <?php echo $replyDownvoted ? 'active-down' : ''; ?>">
+                ▼</button>
 
                 <input
                 type="hidden"
@@ -653,13 +689,43 @@ function toggleReply(id) {
     el.querySelector('textarea').focus();
   }
 }
-function votePost(id, dir, btn) {
-  fetch('vote.php?post_id=' + id + '&dir=' + dir)
+function votePost(id, dir, btn)
+{
+    fetch('vote.php?post_id=' + id + '&dir=' + dir)
     .then(res => res.json())
-    .then(d => {
-      if (d.upvotes !== undefined && d.downvotes !== undefined) {
-        document.getElementById('vc-' + id).textContent = d.upvotes - d.downvotes;
-      }
+    .then(d =>
+    {
+        if (d.upvotes !== undefined && d.downvotes !== undefined)
+        {
+            document.getElementById(
+                'vc-' + id
+            ).textContent =
+            d.upvotes - d.downvotes;
+
+            const group =
+                btn.parentElement;
+
+            const up =
+                group.querySelector('.upvote');
+
+            const down =
+                group.querySelector('.downvote');
+
+            // remove previous colors
+            up.classList.remove('active-up');
+            down.classList.remove('active-down');
+
+            // apply active state
+            if (d.user_vote === 'up')
+            {
+                up.classList.add('active-up');
+            }
+
+            if (d.user_vote === 'down')
+            {
+                down.classList.add('active-down');
+            }
+        }
     });
 }
 function copyLink() {
