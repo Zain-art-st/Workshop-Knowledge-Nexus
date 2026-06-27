@@ -144,8 +144,8 @@ $skills_arr = !empty($graduate['skills']) ? array_map('trim', explode(',', $grad
       transition:border-color .2s;
     }
     .mini-post:hover { border-color:rgba(79,142,247,.3); }
-    .mini-post-sub  { font-size:11px; color:var(--accent); margin-bottom:6px; }
-    .mini-post-title{ font-size:14px; font-weight:600; margin-bottom:6px; }
+    .mini-post-sub  { font-size:11px; color:var(--accent); margin-bottom:6px; overflow-wrap: break-word; word-wrap: break-word; word-break: break-word; }
+    .mini-post-title{ font-size:14px; font-weight:600; margin-bottom:6px; overflow-wrap: break-word; word-wrap: break-word; word-break: break-word; }
     .mini-post-meta { font-size:11px; color:var(--text-muted); }
   </style>
 </head>
