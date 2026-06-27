@@ -169,6 +169,13 @@ function fileIcon($ext)
       </div>
       <?php else: ?>
       <?php foreach($posts as $p): ?>
+        <?php
+          // Get total comments (parent + child comments)
+          $total_comments_query = " SELECT COUNT(*) AS total FROM comments
+          WHERE post_id = {$p['id']} AND is_removed = 0";
+
+          $total_comments = mysqli_fetch_assoc(mysqli_query($conn, $total_comments_query))['total'];
+          ?>
       <div class="card post-card">
         <div class="post-header">
           <div class="post-avatar"><?php echo ava($p['author_photo'],$p['author'],32); ?></div>
@@ -225,10 +232,13 @@ function fileIcon($ext)
         <div class="post-actions">
           <div class="vote-group">
             <button class="vote-btn upvote" onclick="vote(<?php echo $p['id']; ?>,'up',this)">▲</button>
-            <span class="vote-count" id="vc-<?php echo $p['id']; ?>"><?php echo number_format($p['upvotes']); ?></span>
+            <?php
+              $vote_score = $p['upvotes'] - $p['downvotes'];
+            ?>
+            <span class="vote-count" id="vc-<?php echo $p['id']; ?>"><?php echo number_format($vote_score); ?></span>
             <button class="vote-btn downvote" onclick="vote(<?php echo $p['id']; ?>,'down',this)">▼</button>
           </div>
-          <a href="post.php?id=<?php echo $p['id']; ?>" class="action-btn">💬 Comments</a>
+          <a href="post.php?id=<?php echo $p['id']; ?>" class="action-btn">💬 <?php echo $total_comments; ?> Comments</a>
           <button class="action-btn" onclick="copyLink(<?php echo $p['id']; ?>)">↗ Share</button>
           <?php if($user_id!=$p['user_id']): ?>
           <button class="action-btn" style="margin-left:auto;"
@@ -429,10 +439,39 @@ function liveSearch(q){
 }
 
 //Vote n everything else
-function vote(id,dir,btn){
-  fetch('vote.php?post_id='+id+'&dir='+dir).then(r=>r.json()).then(d=>{
-    if(d.votes!==undefined) document.getElementById('vc-'+id).textContent=d.votes;
-  });
+function vote(id, dir, btn) {
+  fetch('vote.php?post_id=' + id + '&dir=' + dir)
+    .then(r => r.json())
+    .then(d => {
+
+      if (d.error) {
+        alert(d.error);
+        return;
+      }
+
+      // Update score
+      document.getElementById('vc-' + id).textContent =
+        d.upvotes - d.downvotes;
+
+      const group = btn.closest('.vote-group');
+
+      group.querySelectorAll('.vote-btn')
+        .forEach(b => b.classList.remove('active'));
+
+      if (d.user_vote === 'up') {
+        group.querySelector('.upvote')
+          .classList.add('active');
+      }
+
+      if (d.user_vote === 'down') {
+        group.querySelector('.downvote')
+          .classList.add('active');
+      }
+    })
+    .catch(err => {
+      console.log(err);
+      alert('Vote failed.');
+    });
 }
 function copyLink(id){navigator.clipboard.writeText(location.origin+location.pathname.replace('dashboard.php','')+'post.php?id='+id).then(()=>alert('Link copied!'));}
 function reportPost(id){const reason=prompt('Reason for reporting:');if(!reason)return;fetch('report.php?type=post&id='+id+'&reason='+encodeURIComponent(reason)).then(r=>r.json()).then(d=>alert(d.message||'Reported.'));}

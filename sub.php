@@ -454,7 +454,10 @@ function fileIcon($ext){$m=['pdf'=>'📕','doc'=>'📘','docx'=>'📘','ppt'=>'�
           <div class="post-actions">
             <div class="vote-group">
               <button class="vote-btn upvote"   onclick="vote(<?php echo $p['id']; ?>,'up',this)">▲</button>
-              <span class="vote-count" id="vc-<?php echo $p['id']; ?>"><?php echo number_format($p['upvotes']); ?></span>
+              <?php
+                $vote_score = $p['upvotes'] - $p['downvotes'];
+              ?>
+              <span class="vote-count" id="vc-<?php echo $p['id']; ?>"><?php echo number_format($vote_score); ?></span>
               <button class="vote-btn downvote" onclick="vote(<?php echo $p['id']; ?>,'down',this)">▼</button>
             </div>
             <a href="post.php?id=<?php echo $p['id']; ?>" class="action-btn">
@@ -596,10 +599,18 @@ document.getElementById('suspendModal').addEventListener('click', function(e) {
 
 /* vote */
 function vote(id, dir, btn) {
-  fetch('vote.php?post_id='+id+'&dir='+dir)
-    .then(r=>r.json()).then(d=>{
-      if (d.votes !== undefined) document.getElementById('vc-'+id).textContent = d.votes;
-    });
+  fetch('vote.php?post_id=' + id + '&dir=' + dir)
+    .then(res => res.json())
+    .then(d => {
+      if (
+        d.upvotes !== undefined &&
+        d.downvotes !== undefined
+      ) {
+        document.getElementById('vc-' + id).textContent =
+          d.upvotes - d.downvotes;
+      }
+    })
+    .catch(err => console.log(err));
 }
 
 /* share */

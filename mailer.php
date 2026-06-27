@@ -8,8 +8,8 @@ require_once __DIR__ . '/PHPMailer/src/PHPMailer.php';
 require_once __DIR__ . '/PHPMailer/src/SMTP.php';
 
 //CONFIG
-define('MAIL_FROM', 'afiflegend2006@gmail.com'); // swap with ur email 
-define('MAIL_PASSWORD', 'yfeq gsnm dqdv wqjr'); // app password in google account make sure 2 step is active
+define('MAIL_FROM', 'yeohjiapoh@gmail.com'); // swap with ur email 
+define('MAIL_PASSWORD', 'onoq tdgi rtje blwr'); // app password in google account make sure 2 step is active
 define('MAIL_FROM_NAME', 'ScholarSpace');
 
 function sendOTPEmail(string $toEmail, string $toName, string $otp): bool {

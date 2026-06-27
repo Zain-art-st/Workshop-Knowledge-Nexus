@@ -80,15 +80,67 @@ if (isset($_POST['remove_comment'])) {
     exit();
 }
 
-// Upvote tracking execution inside comments
+// Comment voting
 if (isset($_POST['vote_comment'])) {
-    $cid = (int)($_POST['comment_id'] ?? 0);
-    $dir = $_POST['vote_dir'] ?? '';
-    if ($cid && $dir === 'up') {
-        mysqli_query($conn, "UPDATE comments SET upvotes = upvotes + 1 WHERE id = $cid");
+
+  $cid = (int) ($_POST['comment_id'] ?? 0);
+  $dir = $_POST['vote_dir'] ?? '';
+
+  if ($cid && in_array($dir, ['up', 'down'])) {
+    $q = mysqli_query($conn, "SELECT upvote_users, downvote_users
+    FROM comments WHERE id=$cid LIMIT 1");
+
+    $comment = mysqli_fetch_assoc($q);
+
+    $up = json_decode($comment['upvote_users'] ?? '[]', true);
+    $down = json_decode($comment['downvote_users'] ?? '[]', true);
+
+    $up = is_array($up) ? $up : [];
+    $down = is_array($down) ? $down : [];
+
+    if ($dir === 'up') 
+    {
+      if (in_array($user_id, $up)) 
+      {
+        // remove vote
+        $up = array_values(array_diff($up, [$user_id]));
+      } else 
+      {
+        // add upvote
+        $up[] = $user_id;
+
+        // remove downvote
+        $down = array_values(array_diff($down, [$user_id]));
+      }
+    } 
+    else {
+      if (in_array($user_id, $down)) {
+        $down = array_values(array_diff($down, [$user_id]));
+      } else {
+        $down[] = $user_id;
+        $up = array_values(array_diff($up, [$user_id]));
+      }
     }
-    header("Location: post.php?id=$post_id#c$cid"); 
-    exit();
+
+    $upvotes = count($up);
+    $downvotes = count($down);
+
+    $stmt = mysqli_prepare($conn, "UPDATE comments SET upvote_users=?,
+    downvote_users=?, upvotes=?, downvotes=?
+    WHERE id=?"
+    );
+
+    $up_json = json_encode($up);
+    $down_json = json_encode($down);
+
+    mysqli_stmt_bind_param($stmt, "ssiii", $up_json,
+    $down_json, $upvotes, $downvotes, $cid);
+
+    mysqli_stmt_execute($stmt);
+  }
+
+  header("Location: post.php?id=$post_id#c$cid");
+  exit();
 }
 
 // Fetch primary parent comments
@@ -113,6 +165,19 @@ foreach ($comments as $c) {
     $rep = mysqli_query($conn, $rep_query);
     $replies_map[$cid] = mysqli_fetch_all($rep, MYSQLI_ASSOC);
 }
+
+// Get total comment including parent and child comments
+$total_comments_query = "
+SELECT COUNT(*) AS total
+FROM comments
+WHERE post_id = $post_id
+AND is_removed = 0
+";
+
+$total_comments =
+  mysqli_fetch_assoc(
+    mysqli_query($conn, $total_comments_query)
+  )['total'];
 
 function timeAgo($date) {
     $diff = time() - strtotime($date);
@@ -392,10 +457,13 @@ function renderCommentAvatar($photo, $name, $size = 32) {
       <div class="post-full-actions">
         <div class="vote-group">
           <button class="vote-btn upvote" onclick="votePost(<?php echo $post_id; ?>,'up',this)">▲</button>
-          <span class="vote-count" id="vc-<?php echo $post_id; ?>"><?php echo number_format($post['upvotes']); ?></span>
+          <?php
+          $vote_score = $post['upvotes'] - $post['downvotes'];
+          ?>
+          <span class="vote-count" id="vc-<?php echo $post_id; ?>"><?php echo number_format($vote_score); ?></span>
           <button class="vote-btn downvote" onclick="votePost(<?php echo $post_id; ?>,'down',this)">▼</button>
         </div>
-        <span class="action-btn">💬 <?php echo count($comments); ?> Comments</span>
+        <span class="action-btn">💬 <?php echo $total_comments; ?> Comments</span>
         <button class="action-btn" onclick="copyLink()">↗ Share</button>
         <?php if ($user_id != $post['user_id']): ?>
           <button class="action-btn" onclick="reportThis()" style="margin-left:auto;">🚩 Report</button>
@@ -407,7 +475,7 @@ function renderCommentAvatar($photo, $name, $size = 32) {
     <div class="comments-section" id="comments">
       <div class="comments-header">
         Comments
-        <span class="comment-count-badge"><?php echo count($comments); ?></span>
+        <span class="comment-count-badge"><?php echo $total_comments; ?></span>
       </div>
 
       <?php if ($can_comment): ?>
@@ -447,10 +515,31 @@ function renderCommentAvatar($photo, $name, $size = 32) {
         <div class="comment-actions">
           <form method="POST" style="display:inline;">
             <input type="hidden" name="comment_id" value="<?php echo $c['id']; ?>">
-            <input type="hidden" name="vote_dir" value="up">
             <div class="comment-vote-group">
-              <button type="submit" name="vote_comment" class="vote-btn upvote">▲</button>
-              <span class="vote-count"><?php echo $c['upvotes']; ?></span>
+            <button type="submit"
+            name="vote_comment"
+            name="vote_dir"
+            value="up"
+            class="vote-btn upvote">
+            ▲
+            </button>
+
+            <span class="vote-count"><?php echo $c['upvotes'] - $c['downvotes']; ?></span>
+
+            <button type="submit"
+            name="vote_comment"
+            value="down"
+            onclick="
+            this.form.vote_dir.value='down'
+            "
+            class="vote-btn downvote">
+            ▼
+            </button>
+
+            <input type="hidden"
+            name="vote_dir"
+            value="up">
+
             </div>
           </form>
           <?php if ($can_comment): ?>
@@ -501,7 +590,47 @@ function renderCommentAvatar($photo, $name, $size = 32) {
                 </form>
                 <?php endif; ?>
               </div>
-              <div class="reply-text"><?php echo nl2br(htmlspecialchars($r['content'])); ?></div>
+              <div class="reply-text">
+                <?php echo nl2br(htmlspecialchars($r['content'])); ?>
+                <div class="comment-actions">
+
+                <form method="POST" style="display:inline;">
+                <input type="hidden" name="comment_id"
+                value="<?php echo $r['id']; ?>">
+
+                <div class="comment-vote-group">
+
+                <button
+                type="submit"
+                name="vote_comment"
+                value="up"
+                onclick="this.form.vote_dir.value='up'"
+                class="vote-btn upvote">
+                ▲
+                </button>
+
+                <span class="vote-count">
+                <?php echo $r['upvotes'] - $r['downvotes']; ?>
+                </span>
+
+                <button
+                type="submit"
+                name="vote_comment"
+                value="down"
+                onclick="this.form.vote_dir.value='down'"
+                class="vote-btn downvote">
+                ▼
+                </button>
+
+                <input
+                type="hidden"
+                name="vote_dir"
+                value="up">
+
+                </div>
+                </form>
+                </div>
+              </div>
             </div>
           </div>
           <?php endforeach; ?>
@@ -528,8 +657,8 @@ function votePost(id, dir, btn) {
   fetch('vote.php?post_id=' + id + '&dir=' + dir)
     .then(res => res.json())
     .then(d => {
-      if (d.votes !== undefined) {
-        document.getElementById('vc-' + id).textContent = d.votes;
+      if (d.upvotes !== undefined && d.downvotes !== undefined) {
+        document.getElementById('vc-' + id).textContent = d.upvotes - d.downvotes;
       }
     });
 }
