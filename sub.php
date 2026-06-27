@@ -1,4 +1,5 @@
 <?php
+date_default_timezone_set('Asia/Kuala_Lumpur');
 session_start();
 include "db.php";
 if (!isset($_SESSION['user_id'])) { header("Location: login.php"); exit(); }
