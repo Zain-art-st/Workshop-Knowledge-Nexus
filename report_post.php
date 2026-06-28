@@ -6,12 +6,26 @@ if(!isset($_SESSION["user_id"]))
     {
     exit("Login required");
     }
+$allowed_reasons = [
+    "Unwanted commercial content or spam",
+    "Pornography or sexually explicit material",
+    "Hate speech or graphic violence",
+    "Harassment or bullying",
+    "Misinformation"
+];
 
 $reporter_id = $_SESSION['user_id'];
 $target_id = intval($_POST['post_id']);
 $reason = trim($_POST['reason']);
 
 if(empty($reason))
+    {
+    echo "error";
+    exit();
+    }
+
+
+if (!in_array($reason, $allowed_reasons)) 
     {
     echo "error";
     exit();
@@ -28,7 +42,6 @@ if(mysqli_num_rows($resultCheckReport) > 0)
     echo "already_reported";
     exit();
     }
-
 
 // Insert report
 $report_query = "INSERT INTO reports (reporter_id, target_type, target_id, reason) VALUES (?, 'post', ?, ?)";

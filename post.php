@@ -59,18 +59,16 @@ if (isset($_POST['submit_comment']) && $can_comment) {
     }
 }
 
-// Moderation handling - removal of target comments
+// Moderation handling
 if (isset($_POST['remove_comment'])) {
     $cid = (int)($_POST['comment_id'] ?? 0);
     if ($cid) {
-        // Fetch comment to check ownership
+        // heck ownership
         $chk = mysqli_fetch_assoc(mysqli_query($conn,
             "SELECT user_id FROM comments WHERE id=$cid LIMIT 1"));
         $is_comment_owner = $chk && ((int)$chk['user_id'] === $user_id);
-
-        // Allow: comment owner, sub moderator, or admin
         if ($is_comment_owner || $is_moderator || $is_admin) {
-            // Soft delete comment and any replies
+            // Soft delete comment
             mysqli_query($conn,
                 "UPDATE comments SET is_removed=1 WHERE id=$cid OR parent_id=$cid");
         }
@@ -79,7 +77,7 @@ if (isset($_POST['remove_comment'])) {
     exit();
 }
 
-// Upvote tracking execution inside comments
+// Upvote tracking
 if (isset($_POST['vote_comment'])) {
     $cid = (int)($_POST['comment_id'] ?? 0);
     $dir = $_POST['vote_dir'] ?? '';
@@ -90,7 +88,7 @@ if (isset($_POST['vote_comment'])) {
     exit();
 }
 
-// Fetch primary parent comments
+// Fetchparent comments
 $comments_query = "SELECT c.*, u.username AS author, u.profile_photo AS author_photo,
             (SELECT COUNT(*) FROM comments r WHERE r.parent_id = c.id AND r.is_removed = 0) AS reply_count
      FROM comments c
@@ -100,7 +98,7 @@ $comments_query = "SELECT c.*, u.username AS author, u.profile_photo AS author_p
 $comments_res = mysqli_query($conn, $comments_query);
 $comments = mysqli_fetch_all($comments_res, MYSQLI_ASSOC);
 
-// Map children replies to parents
+// Map children
 $replies_map = [];
 foreach ($comments as $c) {
     $cid = $c['id'];
@@ -503,12 +501,9 @@ function copyLink() {
   navigator.clipboard.writeText(window.location.href).then(() => alert('Link copied to clipboard!'));
 }
 function reportThis() {
-  const reason = prompt('Reason for reporting this post:');
-  if (!reason) return;
-  fetch('report.php?type=post&id=<?php echo $post_id; ?>&reason=' + encodeURIComponent(reason))
-    .then(res => res.json())
-    .then(d => alert(d.message || 'Report logged.'));
+  openReportModal('post', <?php echo $post_id; ?>);
 }
 </script>
+<?php include "report_modal.php"; ?>
 </body>
 </html>

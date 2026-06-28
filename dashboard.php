@@ -412,7 +412,7 @@ function vote(id,dir,btn){
   });
 }
 function copyLink(id){navigator.clipboard.writeText(location.origin+location.pathname.replace('dashboard.php','')+'post.php?id='+id).then(()=>alert('Link copied!'));}
-function reportPost(id){const reason=prompt('Reason for reporting:');if(!reason)return;fetch('report.php?type=post&id='+id+'&reason='+encodeURIComponent(reason)).then(r=>r.json()).then(d=>alert(d.message||'Reported.'));}
+
 
 function deletePost(id) {
   if (!confirm('Delete this post? This cannot be undone.')) return;
@@ -707,10 +707,9 @@ document.addEventListener('click', e => {
     if (p) p.style.display = 'none';
   }
 });
-
-//warn dirty
 window.addEventListener('beforeunload', e => {
   if (docIsDirty) { e.preventDefault(); e.returnValue = ''; }
 });
 </script>
+<?php include "report_modal.php"; ?>
 </body></html>

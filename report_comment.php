@@ -25,16 +25,35 @@ if($_SERVER["REQUEST_METHOD"] !== "POST")
     exit();
 }
 
+//predefined reporting reasons
+$allowed_reasons = [
+    "Unwanted commercial content or spam",
+    "Pornography or sexually explicit material",
+    "Hate speech or graphic violence",
+    "Harassment or bullying",
+    "Misinformation"
+];
+
 $reporter_id = $_SESSION["user_id"];
 $comment_id = intval($_POST["comment_id"] ?? 0);
 $reason = trim($_POST["reason"] ?? "");
 
-// Validate
+// Validate basic inputs
 if($comment_id <= 0 || empty($reason))
 {
     echo json_encode([
         "success" => false,
         "message" => "Missing information"
+    ]);
+    exit();
+}
+
+//Validate the submitted reason 
+if (!in_array($reason, $allowed_reasons)) 
+{
+    echo json_encode([
+        "success" => false,
+        "message" => "Invalid report reason selected"
     ]);
     exit();
 }

@@ -426,31 +426,8 @@ document.addEventListener('click', function(event) {
     }
   }});
 function reportUser(userId) {
-  const reason = prompt("Please provide a reason for reporting this user:");
-  
-  if (reason !== null && reason.trim() !== "") {
-    fetch('submit_report.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target_type: 'user', target_id: userId, reason: reason })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if(data.status === 'success') {
-        alert("Thank you. The user has been reported to the administrators.");
-      } else {
-        alert("Error reporting user: " + data.message);
-      }
-    })
-    .catch(err => {
-      alert("An error occurred while reporting the user.");
-      console.error(err);
-    });
-    
-    document.getElementById('profileReportMenu').style.display = 'none';
-  } else if (reason !== null) {
-    alert("Report cancelled: A reason is required.");
-  }
+  document.getElementById('profileReportMenu').style.display = 'none';
+  openReportModal('user', userId);
 }
 
 // Moderator Functions
@@ -487,5 +464,6 @@ function submitAddMod() {
   });
 }
 </script>
+<?php include "report_modal.php"; ?>
 </body>
 </html>

@@ -540,7 +540,6 @@ function fileIcon($ext){$m=['pdf'=>'📕','doc'=>'📘','docx'=>'📘','ppt'=>'�
   </div>
 </div>
 
-<!-- FAB — only for members/admin who aren't sub-banned -->
 <?php if (($is_member || $is_admin) && !$is_sub_banned): ?>
 <a href="create_post.php?sub_id=<?php echo $sub_id; ?>" class="post-fab" title="Create post">✏️</a>
 <?php endif; ?>
@@ -591,13 +590,9 @@ function copyPostLink(id) {
   navigator.clipboard.writeText(base + 'post.php?id=' + id).then(()=>alert('Link copied!'));
 }
 
-/* report */
-function reportPost(id) {
-  const reason = prompt('Reason for reporting this post:');
-  if (!reason) return;
-  fetch('report.php?type=post&id='+id+'&reason='+encodeURIComponent(reason))
-    .then(r=>r.json()).then(d=>alert(d.message||'Reported.'));
-}
+/* report — handled by report_modal.php */
+function reportPost(id) { openReportModal('post', id); }
 </script>
+<?php include "report_modal.php"; ?>
 </body>
 </html>

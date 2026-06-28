@@ -114,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     exit();
 }
 
-//Stats on dashboard amdin (Added safe fallbacks)
+//Stats on dashboard amdin
 $total_users   = @mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM users WHERE user_type!='admin'"))['c'] ?? 0;
 $today_signups = @mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM users WHERE DATE(created_at)=CURDATE() AND user_type!='admin'"))['c'] ?? 0;
 $last_month_u  = @mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM users WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) AND user_type!='admin'"))['c'] ?? 0;
@@ -161,6 +161,46 @@ $users_res = mysqli_query($conn,
 $all_users = $users_res ? mysqli_fetch_all($users_res, MYSQLI_ASSOC) : [];
 
 $active_tab = $_GET['tab'] ?? 'dashboard';
+
+// Graph data
+$graph_labels   = [];
+$graph_posts    = [];
+$graph_users    = [];
+for ($i = 6; $i >= 0; $i--) {
+    $date  = date('Y-m-d', strtotime("-$i days"));
+    $label = date('M j', strtotime("-$i days"));
+    $graph_labels[] = $label;
+
+    $p = mysqli_fetch_assoc(mysqli_query($conn,
+        "SELECT COUNT(*) AS c FROM posts WHERE DATE(created_at)='$date'"));
+    $graph_posts[] = (int)($p['c'] ?? 0);
+
+    $u = mysqli_fetch_assoc(mysqli_query($conn,
+        "SELECT COUNT(*) AS c FROM users WHERE DATE(created_at)='$date' AND user_type!='admin'"));
+    $graph_users[] = (int)($u['c'] ?? 0);
+}
+$graph_labels_json = json_encode($graph_labels);
+$graph_posts_json  = json_encode($graph_posts);
+$graph_users_json  = json_encode($graph_users);
+
+// Top active subs 
+$top_subs_res = mysqli_query($conn,
+    "SELECT s.name, COUNT(p.id) AS post_count
+     FROM subcommunities s
+     LEFT JOIN posts p ON p.sub_id=s.id AND p.is_removed=0
+     GROUP BY s.id ORDER BY post_count DESC LIMIT 5");
+$top_subs = mysqli_fetch_all($top_subs_res, MYSQLI_ASSOC);
+
+// Report reasons data 
+$report_reasons_res = mysqli_query($conn,
+    "SELECT reason, COUNT(id) AS report_count
+     FROM reports
+     GROUP BY reason
+     ORDER BY report_count DESC LIMIT 10");
+$report_reasons = $report_reasons_res ? mysqli_fetch_all($report_reasons_res, MYSQLI_ASSOC) : [];
+$reasons_labels = json_encode(array_column($report_reasons, 'reason'));
+$reasons_data = json_encode(array_column($report_reasons, 'report_count'));
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -284,6 +324,97 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
     /* Tabs */
     .admin-content-tab { display:none; }
     .admin-content-tab.active { display:block; }
+    
+    /* MOBILE RESPONSIVENESS OVERRIDES */
+    @media (max-width: 768px) {
+      .admin-layout { flex-direction: column; }
+      
+      .admin-sidebar {
+        width: 100%; 
+        position: relative; 
+        top: 0; 
+        height: auto;
+        flex-direction: row; 
+        flex-wrap: wrap; 
+        justify-content: center;
+        border-right: none; 
+        border-bottom: 1px solid var(--card-border);
+        padding: 12px 10px 0;
+      }
+      
+      .admin-main { margin-left: 0; padding: 16px; }
+      
+      .admin-brand { display: none; }
+      
+      .admin-nav { 
+        display: flex; 
+        flex-direction: row; 
+        flex-wrap: wrap; 
+        justify-content: center; 
+        gap: 6px; 
+        width: 100%; 
+        padding-top: 0;
+      }
+      
+      .admin-nav-item { 
+        width: auto; 
+        padding: 8px 14px; 
+        border-left: none; 
+        border-bottom: 2px solid transparent; 
+        justify-content: center; 
+        flex: 1 1 auto;
+      }
+      
+      .admin-nav-item.active { 
+        border-left-color: transparent; 
+        border-bottom-color: var(--accent); 
+        background: rgba(79,142,247,.08); 
+      }
+      
+      .admin-logout { display: none; }
+      
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+    }
+    
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      
+      .admin-nav-item {
+        font-size: 11px;
+        padding: 8px 6px;
+      }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* Graph section */
+    .graph-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .graph-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 20px 24px;
+    }
+    .graph-card-title {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin-bottom: 16px;
+    }
+    .graph-canvas-wrap { position: relative; height: 200px; }
+    
+    @media (max-width: 768px) {
+        .graph-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -301,6 +432,9 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
     <nav class="admin-nav">
       <button type="button" class="admin-nav-item <?php echo $active_tab==='dashboard'?'active':''; ?>" data-target="dashboard" onclick="switchAdminTab('dashboard')">
         🏠 Dashboard
+      </button>
+      <button type="button" class="admin-nav-item <?php echo $active_tab==='analytics'?'active':''; ?>" data-target="analytics" onclick="switchAdminTab('analytics')">
+        📊 Analytics
       </button>
       <button type="button" class="admin-nav-item <?php echo $active_tab==='moderation'?'active':''; ?>" data-target="moderation" onclick="switchAdminTab('moderation')">
         🚩 Moderation
@@ -334,31 +468,6 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
         </div>
       </div>
 
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-card-label">Total Users</div>
-          <div class="stat-card-value"><?php echo number_format($total_users); ?></div>
-          <div class="stat-card-change up">+<?php echo $last_month_u; ?> this month</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-label">Today's Signups</div>
-          <div class="stat-card-value"><?php echo $today_signups; ?></div>
-          <div class="stat-card-change <?php echo $today_signups>0?'up':''; ?>">
-            <?php echo $today_signups>0 ? 'New members today' : 'No signups yet today'; ?>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-label">Total Posts</div>
-          <div class="stat-card-value"><?php echo number_format($total_posts); ?></div>
-          <div class="stat-card-change up">+<?php echo $today_posts; ?> today</div>
-        </div>
-        <div class="stat-card" style="border-left:3px solid var(--warning);cursor:pointer;" onclick="switchAdminTab('kyc')">
-          <div class="stat-card-label">⏳ Pending eKYC</div>
-          <div class="stat-card-value" style="color:var(--warning);"><?php echo $pending_kyc; ?></div>
-          <div class="stat-card-change warn"><?php echo $pending_kyc > 0 ? 'Awaiting review' : 'All clear'; ?></div>
-        </div>
-      </div>
-
       <div class="admin-section">
         <div class="admin-section-header">
           🚩 Pending Reports
@@ -377,7 +486,7 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
             <?php echo strtoupper($r['target_type']); ?>
           </span>
           <div class="report-info">
-            <div class="report-target"><?php echo htmlspecialchars($r['target_name']??'[deleted]'); ?></div>
+            <div class="report-target"><?php if($r['target_type']==='post' && $r['target_id']): ?><a href="post.php?id=<?php echo $r['target_id']; ?>" target="_blank" style="color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:5px;"><?php echo htmlspecialchars($r['target_name']??'[deleted]'); ?> <span style="font-size:10px;opacity:.7;">↗</span></a><?php else: ?><?php echo htmlspecialchars($r['target_name']??'[deleted]'); ?><?php endif; ?></div>
             <div class="report-reason">"<?php echo htmlspecialchars($r['reason']); ?>"</div>
             <div class="report-by">Reported by <?php echo htmlspecialchars($r['reporter_name']); ?> • <?php echo date('M j, Y', strtotime($r['created_at'])); ?></div>
             <div class="report-actions">
@@ -442,6 +551,62 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
       </div>
     </div>
 
+  <div class="admin-content-tab <?php echo $active_tab==='analytics'?'active':''; ?>" id="tab-analytics">
+      <div class="admin-top">
+        <h1>Analytics</h1>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-label">Total Users</div>
+          <div class="stat-card-value"><?php echo number_format($total_users); ?></div>
+          <div class="stat-card-change up">+<?php echo $last_month_u; ?> this month</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Today's Signups</div>
+          <div class="stat-card-value"><?php echo $today_signups; ?></div>
+          <div class="stat-card-change <?php echo $today_signups>0?'up':''; ?>">
+            <?php echo $today_signups>0 ? 'New members today' : 'No signups yet today'; ?>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-label">Total Posts</div>
+          <div class="stat-card-value"><?php echo number_format($total_posts); ?></div>
+          <div class="stat-card-change up">+<?php echo $today_posts; ?> today</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid var(--warning);cursor:pointer;" onclick="switchAdminTab('kyc')">
+          <div class="stat-card-label">⏳ Pending eKYC</div>
+          <div class="stat-card-value" style="color:var(--warning);"><?php echo $pending_kyc; ?></div>
+          <div class="stat-card-change warn"><?php echo $pending_kyc > 0 ? 'Awaiting review' : 'All clear'; ?></div>
+        </div>
+      </div>
+
+      <div class="graph-grid">
+        <div class="graph-card">
+          <div class="graph-card-title">📈 Activity — Last 7 Days</div>
+          <div class="graph-canvas-wrap">
+            <canvas id="activityChart"></canvas>
+          </div>
+        </div>
+        <div class="graph-card">
+          <div class="graph-card-title">🗂️ Most Active Communities</div>
+          <div class="graph-canvas-wrap">
+            <canvas id="subsChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="graph-grid" style="grid-template-columns: 1fr; margin-top: 24px;">
+        <div class="graph-card" style="max-width: 600px; margin: 0 auto; width: 100%;">
+          <div class="graph-card-title" style="text-align: center;">🚩 Top Report Reasons</div>
+          <div class="graph-canvas-wrap" style="height: 300px;">
+            <canvas id="reportReasonsChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
   <div class="admin-content-tab <?php echo $active_tab==='moderation'?'active':''; ?>" id="tab-moderation">
       <div class="admin-top">
         <h1>Moderation</h1>
@@ -462,7 +627,7 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
         <div class="report-item">
           <span class="report-type-badge <?php echo $r['target_type']; ?>"><?php echo strtoupper($r['target_type']); ?></span>
           <div class="report-info">
-            <div class="report-target"><?php echo htmlspecialchars($r['target_name']??'[deleted]'); ?></div>
+            <div class="report-target"><?php if($r['target_type']==='post' && $r['target_id']): ?><a href="post.php?id=<?php echo $r['target_id']; ?>" target="_blank" style="color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:5px;"><?php echo htmlspecialchars($r['target_name']??'[deleted]'); ?> <span style="font-size:10px;opacity:.7;">↗</span></a><?php else: ?><?php echo htmlspecialchars($r['target_name']??'[deleted]'); ?><?php endif; ?></div>
             <div class="report-reason">"<?php echo htmlspecialchars($r['reason']); ?>"</div>
             <div class="report-by">Reported by <?php echo htmlspecialchars($r['reporter_name']); ?> • <?php echo date('M j, g:i a', strtotime($r['created_at'])); ?></div>
             <div class="report-actions">
@@ -628,7 +793,6 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
                       $matric = $matric_row['matric_number'];
                   }
               }
-              // ------------------------------------------------------------------------
               ?>
               <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--card-border);font-size:13px;">
                 <span style="color:var(--text-muted);">Account Type</span>
@@ -723,16 +887,125 @@ $active_tab = $_GET['tab'] ?? 'dashboard';
 function switchAdminTab(name) {
   document.querySelectorAll('.admin-content-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.admin-nav-item').forEach(b => b.classList.remove('active'));
-  
   const tab = document.getElementById('tab-' + name);
   if (tab) tab.classList.add('active');
-  
-  const btn = document.querySelector(`.admin-nav-item[data-target="${name}"]`);
-  if (btn) btn.classList.add('active');
-  
-  const url = new URL(window.location.href);
-  url.searchParams.set('tab', name);
-  window.history.pushState({}, '', url);
+  document.querySelectorAll('.admin-nav-item').forEach(b => {
+    if (b.dataset.target === name) b.classList.add('active');
+  });
+  history.replaceState(null, '', 'admin.php?tab=' + name);
 }
+
+// Charts 
+const chartDefaults = {
+  plugins: {
+    legend: { labels: { color: '#9b9ab0', font: { size: 12 } } }
+  },
+  scales: {
+    x: { ticks: { color: '#9b9ab0' }, grid: { color: 'rgba(255,255,255,.06)' } },
+    y: { ticks: { color: '#9b9ab0', stepSize: 1 }, grid: { color: 'rgba(255,255,255,.06)' }, beginAtZero: true }
+  }
+};
+
+// Activity line chart
+new Chart(document.getElementById('activityChart'), {
+  type: 'line',
+  data: {
+    labels: <?php echo $graph_labels_json; ?>,
+    datasets: [
+      {
+        label: 'Posts',
+        data: <?php echo $graph_posts_json; ?>,
+        borderColor: '#4f8ef7',
+        backgroundColor: 'rgba(79,142,247,.12)',
+        borderWidth: 2,
+        pointBackgroundColor: '#4f8ef7',
+        tension: 0.4,
+        fill: true,
+      },
+      {
+        label: 'New Users',
+        data: <?php echo $graph_users_json; ?>,
+        borderColor: '#c06de8',
+        backgroundColor: 'rgba(192,109,232,.1)',
+        borderWidth: 2,
+        pointBackgroundColor: '#c06de8',
+        tension: 0.4,
+        fill: true,
+      }
+    ]
+  },
+  options: { ...chartDefaults, responsive: true, maintainAspectRatio: false }
+});
+
+// Top subs bar chart
+new Chart(document.getElementById('subsChart'), {
+  type: 'bar',
+  data: {
+    labels: <?php echo json_encode(array_column($top_subs, 'name')); ?>,
+    datasets: [{
+      label: 'Posts',
+      data: <?php echo json_encode(array_column($top_subs, 'post_count')); ?>,
+      backgroundColor: [
+        'rgba(79,142,247,.7)',
+        'rgba(192,109,232,.7)',
+        'rgba(62,207,142,.7)',
+        'rgba(245,158,11,.7)',
+        'rgba(255,79,106,.7)',
+      ],
+      borderRadius: 6,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    ...chartDefaults,
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false }
+    },
+    scales: {
+      x: {
+        ticks: {
+          color: '#9b9ab0',
+          callback: function(val, i) {
+            // Truncate long sub names
+            const label = this.getLabelForValue(val);
+            return label.length > 12 ? label.substring(0, 12) + '…' : label;
+          }
+        },
+        grid: { color: 'rgba(255,255,255,.06)' }
+      },
+      y: { ticks: { color: '#9b9ab0', stepSize: 1 }, grid: { color: 'rgba(255,255,255,.06)' }, beginAtZero: true }
+    }
+  }
+});
+
+// Report Reasons Doughnut Chart
+new Chart(document.getElementById('reportReasonsChart'), {
+  type: 'doughnut',
+  data: {
+    labels: <?php echo $reasons_labels; ?>,
+    datasets: [{
+      data: <?php echo $reasons_data; ?>,
+      backgroundColor: [
+        'rgba(255,79,106,.8)',
+        'rgba(245,158,11,.8)',
+        'rgba(192,109,232,.8)',
+        'rgba(79,142,247,.8)',
+        'rgba(62,207,142,.8)'
+      ],
+      borderWidth: 1,
+      borderColor: '#0d0d1a'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'right', labels: { color: '#9b9ab0', font: { size: 12 }, padding: 20 } }
+    },
+    cutout: '70%'
+  }
+});
 </script>
 </body> </html>
